@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TaxiConnect</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,sans-serif;background:#1a1a2e;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px}
+  h1{color:#fff;font-size:28px;margin-bottom:6px;text-align:center}
+  p{color:#aaa;font-size:14px;margin-bottom:40px;text-align:center}
+  .cards{display:flex;flex-direction:column;gap:14px;width:100%;max-width:320px}
+  .role-card{background:#fff;border-radius:14px;padding:20px;text-decoration:none;display:flex;align-items:center;gap:14px;box-shadow:0 4px 16px rgba(0,0,0,.3);transition:transform .15s}
+  .role-card:active{transform:scale(.97)}
+  .icon{font-size:32px}
+  .role-card h2{font-size:16px;color:#1a1a2e;margin-bottom:2px}
+  .role-card p{font-size:12px;color:#888;margin:0}
+</style>
+</head>
+<body>
+  <h1>🚕 TaxiConnect</h1>
+  <p>Sun City ↔ Rustenburg</p>
+  <div class="cards">
+    <a class="role-card" href="/conductor.html">
+      <span class="icon">🎛</span>
+      <div><h2>Conductor</h2><p>Manage taxis, view demand, summon drivers</p></div>
+    </a>
+    <a class="role-card" href="/driver.html">
+      <span class="icon">🚗</span>
+      <div><h2>Driver</h2><p>Go live, update passenger count, go offline</p></div>
+    </a>
+    <a class="role-card" href="/passenger.html">
+      <span class="icon">👤</span>
+      <div><h2>Passenger</h2><p>Find taxis, signal you're waiting</p></div>
+    </a>
+  </div>
+</body>
+</html>

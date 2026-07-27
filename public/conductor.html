@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TaxiConnect — Conductor</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"
+        integrity="sha384-sEVIly94UBRLKWdkYoPpSG7GD/e79YHMrxVyZaOk712Ga7+EAw6w1EFi+xBzBdd+"
+        crossorigin="anonymous"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"
+        integrity="sha384-EkqK+ezBWJuvO3hfrSx2iVqr3YQbhmnzn8kPhOpBZ+0GMVU5oGSgptwIu8D84HjE"
+        crossorigin="anonymous"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"
+        integrity="sha384-1/m+A1jVWbD3yiK3/vtFvm1+LjK1WLpSoDY+Kaxppwn/yP9BVSgdHTNQVOjrzUO5"
+        crossorigin="anonymous"></script>
+<script src="/firebase-config.js"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,sans-serif;background:#f0f2f5;min-height:100vh}
+  header{background:#1a1a2e;color:#fff;padding:14px 16px;display:flex;justify-content:space-between;align-items:center}
+  header h1{font-size:16px}
+  .btn-link{background:none;border:1px solid rgba(255,255,255,.3);color:#fff;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:12px}
+  .screen{display:none;padding:12px;max-width:480px;margin:0 auto}
+  .screen.active{display:block}
+  .card{background:#fff;border-radius:12px;padding:14px;margin-bottom:10px;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+  .card h3{font-size:12px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px}
+  .btn{display:block;width:100%;padding:13px;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;margin-top:8px}
+  .btn-primary{background:#e94560;color:#fff}
+  .btn-green{background:#28a745;color:#fff}
+  .btn-grey{background:#6c757d;color:#fff}
+  input[type=tel],input[type=text]{width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:14px;margin-top:6px}
+  .otp-input{letter-spacing:8px;font-size:20px;text-align:center}
+  .tabs{display:flex;background:#fff;border-bottom:1px solid #eee}
+  .tab{flex:1;padding:11px;text-align:center;font-size:12px;font-weight:600;color:#888;cursor:pointer;border-bottom:3px solid transparent}
+  .tab.active{color:#e94560;border-bottom-color:#e94560}
+  .tab-panel{display:none;padding:12px;max-width:480px;margin:0 auto}
+  .tab-panel.active{display:block}
+  .route-section{margin-bottom:12px}
+  .route-section h4{font-size:11px;font-weight:700;color:#e94560;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid #e94560;padding-bottom:5px;margin-bottom:8px}
+  .taxi-row{padding:8px 0;border-bottom:1px solid #f5f5f5}
+  .taxi-row:last-child{border-bottom:none}
+  .row-header{display:flex;justify-content:space-between;align-items:center}
+  .badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600}
+  .b-needs{background:#fff3cd;color:#856404}
+  .b-full{background:#d4edda;color:#155724}
+  .b-breakdown{background:#f8d7da;color:#721c24}
+  .b-blue{background:#cce5ff;color:#004085}
+  .meta{font-size:11px;color:#888;margin-top:3px}
+  .action-row{display:flex;gap:5px;margin-top:6px}
+  .action-row button{flex:1;padding:5px;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer}
+  .alert{padding:10px 12px;border-radius:8px;font-size:13px;margin-bottom:10px;border-left:4px solid}
+  .a-warn{background:#fff3cd;border-color:#ffc107}
+  .a-danger{background:#f8d7da;border-color:#dc3545}
+  .a-success{background:#d4edda;border-color:#28a745}
+  .empty{color:#aaa;font-size:13px;text-align:center;padding:14px 0}
+  .demand-row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid #f5f5f5;font-size:13px}
+  .demand-row:last-child{border-bottom:none}
+  #recaptcha-container{margin-top:10px}
+  .spinner{display:inline-block;width:14px;height:14px;border:2px solid #ddd;border-top-color:#e94560;border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .role-row{display:flex;gap:8px;margin-top:8px}
+  .role-btn{flex:1;padding:9px;border:2px solid #ddd;border-radius:8px;background:#fff;font-size:12px;font-weight:600;cursor:pointer;text-align:center}
+  .role-btn.sel{border-color:#e94560;background:#fff0f3;color:#e94560}
+</style>
+</head>
+<body>
+<header>
+  <h1>🎛 TaxiConnect — Conductor</h1>
+  <button class="btn-link" id="signOutBtn" onclick="signOut()" style="display:none">Sign Out</button>
+</header>
+
+<!-- AUTH -->
+<div id="authScreen" class="screen active">
+  <div class="card" style="margin-top:20px">
+    <h3>Conductor Sign In</h3>
+    <p style="font-size:13px;color:#666;margin-bottom:4px">Enter your registered conductor phone number.</p>
+    <input type="tel" id="phoneInput" placeholder="+27 82 123 4567" />
+    <div id="recaptcha-container"></div>
+    <button class="btn btn-primary" onclick="sendOTP()">Send OTP</button>
+  </div>
+  <div class="card" id="otpCard" style="display:none">
+    <h3>Enter OTP</h3>
+    <input type="tel" id="otpInput" class="otp-input" placeholder="000000" maxlength="6" />
+    <button class="btn btn-green" onclick="verifyOTP()">Verify & Sign In</button>
+  </div>
+  <div id="authError" class="alert a-danger" style="display:none;margin-top:10px"></div>
+</div>
+
+<!-- APP -->
+<div id="appScreen" class="screen">
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('overview')">📊 Overview</div>
+    <div class="tab" onclick="switchTab('taxis')">🚕 Taxis</div>
+    <div class="tab" onclick="switchTab('waiting')">👥 Waiting</div>
+    <div class="tab" onclick="switchTab('manage')">⚙️ Manage</div>
+  </div>
+
+  <div id="tab-overview" class="tab-panel active">
+    <div id="demandAlert" style="display:none;margin-top:10px"></div>
+    <div class="card" style="margin-top:10px">
+      <h3>Live Demand</h3>
+      <div id="demandOverview"><span class="spinner"></span></div>
+    </div>
+    <div class="card">
+      <h3>Notify Drivers</h3>
+      <p style="font-size:12px;color:#666;margin-bottom:8px">Send a browser notification to drivers who have the app open.</p>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary" style="margin-top:0" onclick="notifyRoute('SUN_CITY')">🏘 Alert Sun City Drivers</button>
+        <button class="btn btn-primary" style="margin-top:0;background:#007bff" onclick="notifyRoute('RUSTENBURG')">🏙 Alert Rustenburg Drivers</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="tab-taxis" class="tab-panel">
+    <div class="card" style="margin-top:10px">
+      <h3>Live Taxis</h3>
+      <div id="taxiList"><span class="spinner"></span></div>
+    </div>
+  </div>
+
+  <div id="tab-waiting" class="tab-panel">
+    <div class="card" style="margin-top:10px">
+      <h3>Waiting Passengers</h3>
+      <div id="waitingList"><span class="spinner"></span></div>
+    </div>
+    <div class="card">
+      <h3>Cleanup</h3>
+      <p style="font-size:12px;color:#666;margin-bottom:4px">Remove waiting signals older than 2 hours.</p>
+      <button class="btn btn-grey" onclick="cleanupStale()">🧹 Remove Stale Signals</button>
+    </div>
+  </div>
+
+  <div id="tab-manage" class="tab-panel">
+    <div class="card" style="margin-top:10px">
+      <h3>Register Driver / Conductor</h3>
+      <p style="font-size:12px;color:#666;margin-bottom:4px">Pre-approve a phone number before they sign in.</p>
+      <input type="tel" id="regPhone" placeholder="+27 82 123 4567" />
+      <div class="role-row">
+        <button class="role-btn sel" id="role-driver" onclick="selectRole('driver')">🚗 Driver</button>
+        <button class="role-btn" id="role-conductor" onclick="selectRole('conductor')">🎛 Conductor</button>
+        <button class="role-btn" id="role-passenger" onclick="selectRole('passenger')">👤 Passenger</button>
+      </div>
+      <button class="btn btn-green" onclick="registerPhone()">✅ Register</button>
+      <div id="regMsg" style="margin-top:8px;font-size:13px"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+firebase.initializeApp(FIREBASE_CONFIG);
+const db = firebase.database();
+let confirmationResult = null, recaptchaVerifier = null;
+let allTaxis = {}, allWaiting = {};
+let regRole = 'driver';
+
+// ── Auth ──────────────────────────────────────────────────────────
+firebase.auth().onAuthStateChanged(async (user) => {
+  if (!user) { show('authScreen'); return; }
+  const snap = await db.ref(`users/${user.uid}/role`).once('value');
+  if (snap.val() !== 'conductor') {
+    await firebase.auth().signOut();
+    showErr('This number is not registered as a conductor.');
+    return;
+  }
+  document.getElementById('signOutBtn').style.display = 'block';
+  show('appScreen');
+  subscribe();
+  requestNotificationPermission();
+});
+
+function sendOTP() {
+  const phone = document.getElementById('phoneInput').value.trim();
+  if (!phone) { showErr('Enter your phone number.'); return; }
+  if (!recaptchaVerifier) recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', { size: 'normal' });
+  firebase.auth().signInWithPhoneNumber(phone, recaptchaVerifier)
+    .then(r => { confirmationResult = r; document.getElementById('otpCard').style.display = 'block'; })
+    .catch(e => showErr(e.message));
+}
+
+function verifyOTP() {
+  const code = document.getElementById('otpInput').value.trim();
+  if (!code || !confirmationResult) return;
+  confirmationResult.confirm(code).catch(() => showErr('Invalid OTP. Try again.'));
+}
+
+function signOut() { firebase.auth().signOut(); document.getElementById('signOutBtn').style.display = 'none'; }
+function showErr(m) { const e = document.getElementById('authError'); e.textContent = m; e.style.display = 'block'; }
+
+// ── Data ──────────────────────────────────────────────────────────
+function subscribe() {
+  db.ref('taxis').on('value', s => { allTaxis = s.val() || {}; renderAll(); });
+  db.ref('waitingPassengers').on('value', s => { allWaiting = s.val() || {}; renderAll(); });
+}
+
+function renderAll() {
+  renderDemand(); renderTaxis(); renderWaiting(); renderAlert();
+}
+
+function renderDemand() {
+  const stats = { SUN_CITY: { taxis:0, waiting:0, seats:0 }, RUSTENBURG: { taxis:0, waiting:0, seats:0 } };
+  Object.values(allTaxis).forEach(t => {
+    if (!stats[t.route]) return;
+    stats[t.route].taxis++;
+    stats[t.route].seats += Math.max(0, (t.capacity||14) - (t.passengersOnboard||0));
+  });
+  Object.values(allWaiting).forEach(w => { if (stats[w.route]) stats[w.route].waiting += (w.groupSize||1); });
+  document.getElementById('demandOverview').innerHTML = Object.entries(stats).map(([r,v]) => `
+    <div class="demand-row">
+      <span style="font-weight:600">${routeLabel(r)}</span>
+      <span>
+        <span class="badge b-blue">🚕 ${v.taxis}</span>
+        <span class="badge b-needs" style="margin-left:4px">👥 ${v.waiting}</span>
+        ${v.taxis ? `<span class="badge" style="margin-left:4px;background:#e2e3e5;color:#383d41">🪑 ${v.seats}</span>` : ''}
+      </span>
+    </div>`).join('');
+}
+
+function renderTaxis() {
+  const el = document.getElementById('taxiList');
+  const entries = Object.entries(allTaxis);
+  if (!entries.length) { el.innerHTML = '<div class="empty">No active taxis.</div>'; return; }
+  el.innerHTML = ['SUN_CITY','RUSTENBURG'].map(route => {
+    const taxis = entries.filter(([,t]) => t.route === route);
+    const rows = taxis.length ? taxis.map(([id,t]) => {
+      const needed = (t.capacity||14) - (t.passengersOnboard||0);
+      const badge = t.status === 'breakdown' ? `<span class="badge b-breakdown">⚠️ Breakdown</span>`
+        : needed <= 0 ? `<span class="badge b-full">✅ Full</span>`
+        : `<span class="badge b-needs">Needs ${needed}</span>`;
+      return `<div class="taxi-row">
+        <div class="row-header"><strong style="font-size:13px">${t.driverName}</strong>${badge}</div>
+        <div class="meta">${t.passengersOnboard||0}/${t.capacity||14} onboard · ${timeAgo(t.lastUpdated)}</div>
+        <div class="action-row">
+          <button onclick="setStatus('${id}','departed')" style="background:#007bff;color:#fff">🚗 Depart</button>
+          <button onclick="setStatus('${id}','breakdown')" style="background:#dc3545;color:#fff">⚠️ Breakdown</button>
+          <button onclick="removeTaxi('${id}')" style="background:#6c757d;color:#fff">🗑 Remove</button>
+        </div>
+      </div>`;
+    }).join('') : '<div class="empty">No taxis.</div>';
+    return `<div class="route-section"><h4>${routeLabel(route)}</h4>${rows}</div>`;
+  }).join('');
+}
+
+function renderWaiting() {
+  const el = document.getElementById('waitingList');
+  const entries = Object.entries(allWaiting);
+  if (!entries.length) { el.innerHTML = '<div class="empty">No passengers waiting.</div>'; return; }
+  el.innerHTML = entries.map(([id,w]) => `
+    <div class="taxi-row">
+      <div class="row-header">
+        <span style="font-size:13px;font-weight:600">${routeLabel(w.route)}</span>
+        <span class="badge b-needs">👥 ${w.groupSize||1}</span>
+      </div>
+      <div class="meta">⏱ ${timeAgo(w.timestamp)}</div>
+      <button onclick="dismiss('${id}')" style="margin-top:5px;padding:4px 10px;border:none;border-radius:6px;background:#28a745;color:#fff;font-size:11px;font-weight:600;cursor:pointer">✅ Assigned</button>
+    </div>`).join('');
+}
+
+function renderAlert() {
+  const total = Object.values(allWaiting).reduce((s,w) => s + (w.groupSize||1), 0);
+  const el = document.getElementById('demandAlert');
+  if (total >= 3) {
+    el.className = 'alert a-danger'; el.style.display = 'block';
+    el.innerHTML = `🔥 <strong>${total} passengers waiting!</strong> Alert drivers now.`;
+  } else el.style.display = 'none';
+}
+
+// ── Actions ───────────────────────────────────────────────────────
+function setStatus(id, status) {
+  if (status === 'departed') {
+    const taxi = allTaxis[id];
+    if (taxi) db.ref(`history/${id}`).set({ ...taxi, departedAt: Date.now() });
+    db.ref(`taxis/${id}`).remove();
+  } else {
+    db.ref(`taxis/${id}`).update({ status, lastUpdated: Date.now() });
+  }
+}
+
+function removeTaxi(id) {
+  if (confirm('Remove this taxi?')) db.ref(`taxis/${id}`).remove();
+}
+
+function dismiss(id) { db.ref(`waitingPassengers/${id}`).remove(); }
+
+function cleanupStale() {
+  const cutoff = Date.now() - 2 * 60 * 60 * 1000;
+  Object.entries(allWaiting).forEach(([id, w]) => {
+    if (w.timestamp < cutoff) db.ref(`waitingPassengers/${id}`).remove();
+  });
+  alert('✅ Stale signals removed.');
+}
+
+// ── Notifications (replaces FCM on Spark) ─────────────────────────
+function requestNotificationPermission() {
+  if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
+}
+
+function notifyRoute(route) {
+  const waiting = Object.values(allWaiting).filter(w => w.route === route);
+  const count = waiting.reduce((s,w) => s + (w.groupSize||1), 0);
+  // Write a summon signal to DB — driver apps poll this
+  db.ref(`summons/${route}`).set({ count, timestamp: Date.now(), conductorId: firebase.auth().currentUser?.uid });
+  alert(`✅ Alert written for ${ROUTES[route].label} drivers. ${count} passengers waiting.`);
+}
+
+// ── Manage ────────────────────────────────────────────────────────
+function selectRole(r) {
+  regRole = r;
+  ['driver','conductor','passenger'].forEach(x => document.getElementById(`role-${x}`).classList.toggle('sel', x === r));
+}
+
+async function registerPhone() {
+  const phone = document.getElementById('regPhone').value.trim();
+  if (!phone) { alert('Enter a phone number.'); return; }
+  const key = phone.replace(/[^0-9]/g, '');
+  await db.ref(`approvedPhones/${key}`).set(regRole);
+  document.getElementById('regMsg').innerHTML = `<span style="color:#28a745">✅ ${phone} approved as ${regRole}</span>`;
+  document.getElementById('regPhone').value = '';
+}
+
+// ── Helpers ───────────────────────────────────────────────────────
+function show(id) { document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
+function switchTab(n) {
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', ['overview','taxis','waiting','manage'][i] === n));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById(`tab-${n}`).classList.add('active');
+}
+</script>
+</body>
+</html>

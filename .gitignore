@@ -1,0 +1,32 @@
+# Environment files
+.env
+.env.production
+.env.local
+*.env
+
+# Firebase secrets & generated config
+public/firebase-config.js
+.firebase/
+firebase-debug.log
+*.log
+
+# Dependencies
+node_modules/
+package-lock.json
+
+# Build output
+dist/
+build/
+
+# Flutter/Dart
+.dart_tool/
+.packages
+pubspec.lock
+
+# OS & IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo

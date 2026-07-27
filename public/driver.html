@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TaxiConnect — Driver</title>
+<meta name="theme-color" content="#1a1a2e">
+<link rel="manifest" href="/driver-manifest.json">
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"
+        integrity="sha384-sEVIly94UBRLKWdkYoPpSG7GD/e79YHMrxVyZaOk712Ga7+EAw6w1EFi+xBzBdd+"
+        crossorigin="anonymous"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"
+        integrity="sha384-EkqK+ezBWJuvO3hfrSx2iVqr3YQbhmnzn8kPhOpBZ+0GMVU5oGSgptwIu8D84HjE"
+        crossorigin="anonymous"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"
+        integrity="sha384-1/m+A1jVWbD3yiK3/vtFvm1+LjK1WLpSoDY+Kaxppwn/yP9BVSgdHTNQVOjrzUO5"
+        crossorigin="anonymous"></script>
+<script src="/firebase-config.js"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,sans-serif;background:#f0f2f5;min-height:100vh}
+  header{background:#1a1a2e;color:#fff;padding:14px 16px;display:flex;justify-content:space-between;align-items:center}
+  header h1{font-size:16px}
+  .btn-link{background:none;border:1px solid rgba(255,255,255,.3);color:#fff;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:12px}
+  .screen{display:none;padding:12px;max-width:420px;margin:0 auto}
+  .screen.active{display:block}
+  .card{background:#fff;border-radius:12px;padding:16px;margin-bottom:10px;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+  .card h3{font-size:12px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px}
+  .btn{display:block;width:100%;padding:14px;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;margin-top:10px}
+  .btn-green{background:#28a745;color:#fff}
+  .btn-red{background:#dc3545;color:#fff}
+  .btn-blue{background:#007bff;color:#fff}
+  input[type=tel],input[type=text]{width:100%;padding:11px;border:1px solid #ddd;border-radius:8px;font-size:14px;margin-top:6px}
+  .otp-input{letter-spacing:8px;font-size:22px;text-align:center}
+  .route-row{display:flex;gap:8px;margin-top:8px}
+  .route-btn{flex:1;padding:14px 8px;border:2px solid #ddd;border-radius:10px;background:#fff;font-size:13px;font-weight:700;cursor:pointer;text-align:center;line-height:1.4}
+  .route-btn.sel{border-color:#28a745;background:#f0fff4;color:#155724}
+  .counter-wrap{display:flex;align-items:center;justify-content:center;gap:16px;margin-top:10px}
+  .cbtn{width:44px;height:44px;border:none;border-radius:50%;font-size:22px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center}
+  .cbtn.minus{background:#f8d7da;color:#721c24}
+  .cbtn.plus{background:#d4edda;color:#155724}
+  .cval{font-size:32px;font-weight:700;min-width:48px;text-align:center}
+  .needs-box{border-radius:10px;padding:14px;text-align:center;margin-top:10px}
+  .needs-box .num{font-size:36px;font-weight:700}
+  .needs-box .lbl{font-size:12px;margin-top:2px}
+  .nb-loading{background:#fff3cd;color:#856404}
+  .nb-full{background:#d4edda;color:#155724}
+  .alert{padding:10px 12px;border-radius:8px;font-size:13px;margin-bottom:10px;border-left:4px solid}
+  .a-success{background:#d4edda;border-color:#28a745}
+  .a-danger{background:#f8d7da;border-color:#dc3545}
+  .summon-banner{background:#e94560;color:#fff;padding:14px;border-radius:10px;margin-bottom:10px;font-weight:600;font-size:14px;display:none}
+  #recaptcha-container{margin-top:10px}
+  .spinner{display:inline-block;width:16px;height:16px;border:2px solid #ddd;border-top-color:#28a745;border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle}
+  @keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<header>
+  <h1>🚗 TaxiConnect — Driver</h1>
+  <button class="btn-link" id="signOutBtn" onclick="signOut()" style="display:none">Sign Out</button>
+</header>
+
+<!-- AUTH -->
+<div id="authScreen" class="screen active">
+  <div class="card" style="margin-top:20px">
+    <h3>Driver Sign In</h3>
+    <p style="font-size:13px;color:#666;margin-bottom:4px">Your number must be registered by the conductor first.</p>
+    <input type="tel" id="phoneInput" placeholder="+27 82 123 4567" />
+    <div id="recaptcha-container"></div>
+    <button class="btn btn-green" onclick="sendOTP()">Send OTP</button>
+  </div>
+  <div class="card" id="otpCard" style="display:none">
+    <h3>Enter OTP</h3>
+    <input type="tel" id="otpInput" class="otp-input" placeholder="000000" maxlength="6" />
+    <button class="btn btn-green" onclick="verifyOTP()">Verify & Sign In</button>
+  </div>
+  <div id="authError" class="alert a-danger" style="display:none;margin-top:10px"></div>
+</div>
+
+<!-- APP -->
+<div id="appScreen" class="screen">
+  <div id="summonBanner" class="summon-banner"></div>
+
+  <div id="checkInCard" class="card" style="margin-top:10px">
+    <h3>Go Live</h3>
+    <div class="route-row">
+      <button class="route-btn sel" id="drv-sun" onclick="selectRoute('SUN_CITY')">🏘 Sun City<br><small>Sun Village</small></button>
+      <button class="route-btn" id="drv-rust" onclick="selectRoute('RUSTENBURG')">🏙 Rustenburg<br><small>Town</small></button>
+    </div>
+    <label style="font-size:12px;color:#666;margin-top:12px;display:block">Taxi Capacity</label>
+    <div class="counter-wrap">
+      <button class="cbtn minus" onclick="adjCap(-1)">−</button>
+      <span class="cval" id="capVal">14</span>
+      <button class="cbtn plus" onclick="adjCap(1)">+</button>
+    </div>
+    <label style="font-size:12px;color:#666;margin-top:12px;display:block">Passengers Already Onboard</label>
+    <div class="counter-wrap">
+      <button class="cbtn minus" onclick="adjOnboard(-1)">−</button>
+      <span class="cval" id="onboardVal">0</span>
+      <button class="cbtn plus" onclick="adjOnboard(1)">+</button>
+    </div>
+    <div class="needs-box nb-loading" id="previewBox">
+      <div class="num" id="previewNum">14</div>
+      <div class="lbl">passengers needed</div>
+    </div>
+    <button class="btn btn-green" onclick="goLive()">✅ GO LIVE</button>
+  </div>
+
+  <div id="liveCard" class="card" style="display:none;margin-top:10px">
+    <h3>You Are Live</h3>
+    <div id="liveInfo"></div>
+    <label style="font-size:12px;color:#666;margin-top:14px;display:block;font-weight:600">Update Passengers Onboard</label>
+    <div class="counter-wrap" style="margin-top:8px">
+      <button class="cbtn minus" onclick="adjLive(-1)">−</button>
+      <span class="cval" id="liveVal">0</span>
+      <button class="cbtn plus" onclick="adjLive(1)">+</button>
+    </div>
+    <div class="needs-box nb-loading" id="liveNeedsBox">
+      <div class="num" id="liveNeedsNum">14</div>
+      <div class="lbl" id="liveNeedsLbl">passengers needed</div>
+    </div>
+    <button class="btn btn-blue" onclick="updatePassengers()">🔄 Update Count</button>
+    <button class="btn btn-red" onclick="goOffline()" style="margin-top:8px">🔴 Go Offline</button>
+  </div>
+</div>
+
+<script>
+firebase.initializeApp(FIREBASE_CONFIG);
+const db = firebase.database();
+let confirmationResult = null, recaptchaVerifier = null;
+let selectedRoute = 'SUN_CITY', capacity = 14, onboard = 0, liveOnboard = 0;
+let myTaxiId = null, myCapacity = 14, currentUser = null;
+
+// ── Auth ──────────────────────────────────────────────────────────
+firebase.auth().onAuthStateChanged(async (user) => {
+  if (!user) { show('authScreen'); return; }
+  currentUser = user;
+
+  // Assign role on first login using approvedPhones
+  const userSnap = await db.ref(`users/${user.uid}`).once('value');
+  if (!userSnap.exists()) {
+    const phone = user.phoneNumber;
+    const key = phone.replace(/[^0-9]/g, '');
+    const roleSnap = await db.ref(`approvedPhones/${key}`).once('value');
+    const role = roleSnap.val() || 'passenger';
+    await db.ref(`users/${user.uid}`).set({ phone, role, displayName: phone, createdAt: Date.now() });
+  }
+
+  const role = (await db.ref(`users/${user.uid}/role`).once('value')).val();
+  if (role !== 'driver') {
+    await firebase.auth().signOut();
+    showErr('This number is not registered as a driver. Contact your conductor.');
+    return;
+  }
+
+  document.getElementById('signOutBtn').style.display = 'block';
+  show('appScreen');
+  requestNotificationPermission();
+  listenForSummons();
+});
+
+function sendOTP() {
+  const phone = document.getElementById('phoneInput').value.trim();
+  if (!phone) { showErr('Enter your phone number.'); return; }
+  if (!recaptchaVerifier) recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', { size: 'normal' });
+  firebase.auth().signInWithPhoneNumber(phone, recaptchaVerifier)
+    .then(r => { confirmationResult = r; document.getElementById('otpCard').style.display = 'block'; })
+    .catch(e => showErr(e.message));
+}
+
+function verifyOTP() {
+  const code = document.getElementById('otpInput').value.trim();
+  if (!code || !confirmationResult) return;
+  confirmationResult.confirm(code).catch(() => showErr('Invalid OTP. Try again.'));
+}
+
+function signOut() {
+  if (myTaxiId) goOffline();
+  firebase.auth().signOut();
+  document.getElementById('signOutBtn').style.display = 'none';
+}
+
+function showErr(m) { const e = document.getElementById('authError'); e.textContent = m; e.style.display = 'block'; }
+
+// ── Summon listener ───────────────────────────────────────────────
+function listenForSummons() {
+  db.ref(`summons/${selectedRoute}`).on('value', snap => {
+    const s = snap.val();
+    if (!s || Date.now() - s.timestamp > 5 * 60 * 1000) return;
+    const banner = document.getElementById('summonBanner');
+    banner.textContent = `🚨 Conductor needs drivers → ${ROUTES[selectedRoute].label}! ${s.count} passengers waiting.`;
+    banner.style.display = 'block';
+    if (Notification.permission === 'granted') {
+      new Notification('🚨 TaxiConnect', { body: `${s.count} passengers waiting for ${ROUTES[selectedRoute].label}. Go live now!` });
+    }
+    setTimeout(() => { banner.style.display = 'none'; }, 30000);
+  });
+}
+
+function requestNotificationPermission() {
+  if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
+}
+
+// ── Counters ──────────────────────────────────────────────────────
+function adjCap(d) {
+  capacity = Math.max(1, Math.min(22, capacity + d));
+  onboard = Math.min(onboard, capacity);
+  document.getElementById('capVal').textContent = capacity;
+  document.getElementById('onboardVal').textContent = onboard;
+  updatePreview();
+}
+
+function adjOnboard(d) {
+  onboard = Math.max(0, Math.min(capacity, onboard + d));
+  document.getElementById('onboardVal').textContent = onboard;
+  updatePreview();
+}
+
+function adjLive(d) {
+  liveOnboard = Math.max(0, Math.min(myCapacity, liveOnboard + d));
+  document.getElementById('liveVal').textContent = liveOnboard;
+  const needed = myCapacity - liveOnboard;
+  document.getElementById('liveNeedsNum').textContent = needed;
+  const box = document.getElementById('liveNeedsBox');
+  if (needed <= 0) { box.className = 'needs-box nb-full'; document.getElementById('liveNeedsLbl').textContent = 'TAXI IS FULL'; }
+  else { box.className = 'needs-box nb-loading'; document.getElementById('liveNeedsLbl').textContent = 'passengers needed'; }
+}
+
+function updatePreview() {
+  const needed = capacity - onboard;
+  document.getElementById('previewNum').textContent = needed;
+  document.getElementById('previewBox').className = `needs-box ${needed <= 0 ? 'nb-full' : 'nb-loading'}`;
+}
+
+function selectRoute(r) {
+  selectedRoute = r;
+  document.getElementById('drv-sun').classList.toggle('sel', r === 'SUN_CITY');
+  document.getElementById('drv-rust').classList.toggle('sel', r === 'RUSTENBURG');
+}
+
+// ── Go Live / Offline ─────────────────────────────────────────────
+async function goLive() {
+  if (!currentUser) return;
+  const displayName = (await db.ref(`users/${currentUser.uid}/displayName`).once('value')).val() || currentUser.phoneNumber;
+
+  // Remove any existing taxi for this driver
+  const existing = await db.ref('taxis').orderByChild('driverId').equalTo(currentUser.uid).once('value');
+  existing.forEach(child => child.ref.remove());
+
+  const taxiRef = db.ref('taxis').push();
+  myTaxiId = taxiRef.key;
+  myCapacity = capacity;
+  liveOnboard = onboard;
+
+  await taxiRef.set({
+    driverId: currentUser.uid,
+    driverName: displayName,
+    route: selectedRoute,
+    capacity,
+    passengersOnboard: onboard,
+    status: onboard >= capacity ? 'full' : 'loading',
+    lastUpdated: Date.now(),
+  });
+
+  document.getElementById('liveVal').textContent = liveOnboard;
+  document.getElementById('liveNeedsNum').textContent = myCapacity - liveOnboard;
+  document.getElementById('liveInfo').innerHTML = `
+    <div class="alert a-success">🟢 Live on <strong>${routeLabel(selectedRoute)}</strong><br>Capacity: ${myCapacity}</div>`;
+  document.getElementById('checkInCard').style.display = 'none';
+  document.getElementById('liveCard').style.display = 'block';
+}
+
+async function updatePassengers() {
+  if (!myTaxiId) return;
+  const isFull = liveOnboard >= myCapacity;
+  await db.ref(`taxis/${myTaxiId}`).update({
+    passengersOnboard: liveOnboard,
+    status: isFull ? 'full' : 'loading',
+    lastUpdated: Date.now(),
+  });
+  if (isFull) {
+    document.getElementById('liveInfo').innerHTML = `<div class="alert a-success">✅ Taxi is FULL — ready to depart!</div>`;
+  }
+}
+
+async function goOffline() {
+  if (myTaxiId) await db.ref(`taxis/${myTaxiId}`).remove();
+  myTaxiId = null; onboard = 0;
+  document.getElementById('onboardVal').textContent = '0';
+  updatePreview();
+  document.getElementById('checkInCard').style.display = 'block';
+  document.getElementById('liveCard').style.display = 'none';
+}
+
+// ── Helpers ───────────────────────────────────────────────────────
+function show(id) { document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
+</script>
+</body>
+</html>
