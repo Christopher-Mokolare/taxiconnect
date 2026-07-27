@@ -72,16 +72,10 @@
 <!-- AUTH -->
 <div id="authScreen" class="screen active">
   <div class="card" style="margin-top:20px">
-    <h3>Conductor Sign In</h3>
-    <p style="font-size:13px;color:#666;margin-bottom:4px">Enter your registered conductor phone number.</p>
-    <input type="tel" id="phoneInput" placeholder="+27 82 123 4567" />
-    <div id="recaptcha-container"></div>
-    <button class="btn btn-primary" onclick="sendOTP()">Send OTP</button>
-  </div>
-  <div class="card" id="otpCard" style="display:none">
-    <h3>Enter OTP</h3>
-    <input type="tel" id="otpInput" class="otp-input" placeholder="000000" maxlength="6" />
-    <button class="btn btn-green" onclick="verifyOTP()">Verify & Sign In</button>
+    <h3>Conductor PIN</h3>
+    <p style="font-size:13px;color:#666;margin-bottom:4px">Enter the conductor PIN to access the dashboard.</p>
+    <input type="password" id="pinInput" placeholder="Enter PIN" maxlength="20" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:18px;letter-spacing:4px;text-align:center;margin-top:6px" />
+    <button class="btn btn-primary" onclick="pinLogin()">Enter Dashboard</button>
   </div>
   <div id="authError" class="alert a-danger" style="display:none;margin-top:10px"></div>
 </div>
@@ -132,6 +126,11 @@
 
   <div id="tab-manage" class="tab-panel">
     <div class="card" style="margin-top:10px">
+      <h3>Clear Test Data</h3>
+      <p style="font-size:12px;color:#666;margin-bottom:4px">Wipe all taxis, waiting signals and summons from the database.</p>
+      <button class="btn" style="background:#dc3545;color:#fff" onclick="clearAllData()">🗑 Clear All Data</button>
+    </div>
+    <div class="card">
       <h3>Register Driver / Conductor</h3>
       <p style="font-size:12px;color:#666;margin-bottom:4px">Pre-approve a phone number before they sign in.</p>
       <input type="tel" id="regPhone" placeholder="+27 82 123 4567" />
@@ -149,42 +148,41 @@
 <script>
 firebase.initializeApp(FIREBASE_CONFIG);
 const db = firebase.database();
-let confirmationResult = null, recaptchaVerifier = null;
 let allTaxis = {}, allWaiting = {};
 let regRole = 'driver';
 
 // ── Auth ──────────────────────────────────────────────────────────
-firebase.auth().onAuthStateChanged(async (user) => {
-  if (!user) { show('authScreen'); return; }
-  const snap = await db.ref(`users/${user.uid}/role`).once('value');
-  if (snap.val() !== 'conductor') {
-    await firebase.auth().signOut();
-    showErr('This number is not registered as a conductor.');
-    return;
-  }
+const CONDUCTOR_PIN = 'conductor2024';
+
+firebase.auth().signInAnonymously().catch(() => {});
+
+function pinLogin() {
+  const pin = document.getElementById('pinInput').value.trim();
+  if (pin !== CONDUCTOR_PIN) { showErr('Incorrect PIN. Try again.'); return; }
+  sessionStorage.setItem('tc_role', 'conductor');
   document.getElementById('signOutBtn').style.display = 'block';
   show('appScreen');
   subscribe();
   requestNotificationPermission();
-});
-
-function sendOTP() {
-  const phone = document.getElementById('phoneInput').value.trim();
-  if (!phone) { showErr('Enter your phone number.'); return; }
-  if (!recaptchaVerifier) recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', { size: 'normal' });
-  firebase.auth().signInWithPhoneNumber(phone, recaptchaVerifier)
-    .then(r => { confirmationResult = r; document.getElementById('otpCard').style.display = 'block'; })
-    .catch(e => showErr(e.message));
 }
 
-function verifyOTP() {
-  const code = document.getElementById('otpInput').value.trim();
-  if (!code || !confirmationResult) return;
-  confirmationResult.confirm(code).catch(() => showErr('Invalid OTP. Try again.'));
+function signOut() {
+  sessionStorage.removeItem('tc_role');
+  document.getElementById('signOutBtn').style.display = 'none';
+  show('authScreen');
 }
 
-function signOut() { firebase.auth().signOut(); document.getElementById('signOutBtn').style.display = 'none'; }
 function showErr(m) { const e = document.getElementById('authError'); e.textContent = m; e.style.display = 'block'; }
+
+// Auto-login if PIN session still active
+if (sessionStorage.getItem('tc_role') === 'conductor') {
+  firebase.auth().signInAnonymously().then(() => {
+    document.getElementById('signOutBtn').style.display = 'block';
+    show('appScreen');
+    subscribe();
+    requestNotificationPermission();
+  });
+}
 
 // ── Data ──────────────────────────────────────────────────────────
 function subscribe() {
@@ -300,6 +298,15 @@ function notifyRoute(route) {
   // Write a summon signal to DB — driver apps poll this
   db.ref(`summons/${route}`).set({ count, timestamp: Date.now(), conductorId: firebase.auth().currentUser?.uid });
   alert(`✅ Alert written for ${ROUTES[route].label} drivers. ${count} passengers waiting.`);
+}
+
+function clearAllData() {
+  if (!confirm('Delete ALL taxis, waiting passengers and summons? This cannot be undone.')) return;
+  Promise.all([
+    db.ref('taxis').remove(),
+    db.ref('waitingPassengers').remove(),
+    db.ref('summons').remove()
+  ]).then(() => alert('✅ All data cleared.'));
 }
 
 // ── Manage ────────────────────────────────────────────────────────

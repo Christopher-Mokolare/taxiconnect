@@ -64,15 +64,10 @@
 <div id="authScreen" class="screen active">
   <div class="card" style="margin-top:20px">
     <h3>Driver Sign In</h3>
-    <p style="font-size:13px;color:#666;margin-bottom:4px">Your number must be registered by the conductor first.</p>
-    <input type="tel" id="phoneInput" placeholder="+27 82 123 4567" />
-    <div id="recaptcha-container"></div>
-    <button class="btn btn-green" onclick="sendOTP()">Send OTP</button>
-  </div>
-  <div class="card" id="otpCard" style="display:none">
-    <h3>Enter OTP</h3>
-    <input type="tel" id="otpInput" class="otp-input" placeholder="000000" maxlength="6" />
-    <button class="btn btn-green" onclick="verifyOTP()">Verify & Sign In</button>
+    <p style="font-size:13px;color:#666;margin-bottom:4px">Enter your name and the driver PIN.</p>
+    <input type="text" id="nameInput" placeholder="Your name (e.g. John)" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:14px;margin-top:6px" />
+    <input type="password" id="pinInput" placeholder="Driver PIN" maxlength="20" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:18px;letter-spacing:4px;text-align:center;margin-top:8px" />
+    <button class="btn btn-green" onclick="pinLogin()">Enter App</button>
   </div>
   <div id="authError" class="alert a-danger" style="display:none;margin-top:10px"></div>
 </div>
@@ -127,60 +122,50 @@
 <script>
 firebase.initializeApp(FIREBASE_CONFIG);
 const db = firebase.database();
-let confirmationResult = null, recaptchaVerifier = null;
 let selectedRoute = 'SUN_CITY', capacity = 14, onboard = 0, liveOnboard = 0;
-let myTaxiId = null, myCapacity = 14, currentUser = null;
+let myTaxiId = null, myCapacity = 14;
 
 // ── Auth ──────────────────────────────────────────────────────────
-firebase.auth().onAuthStateChanged(async (user) => {
-  if (!user) { show('authScreen'); return; }
-  currentUser = user;
+const DRIVER_PIN = 'driver2024';
+let driverName = '';
 
-  // Assign role on first login using approvedPhones
-  const userSnap = await db.ref(`users/${user.uid}`).once('value');
-  if (!userSnap.exists()) {
-    const phone = user.phoneNumber;
-    const key = phone.replace(/[^0-9]/g, '');
-    const roleSnap = await db.ref(`approvedPhones/${key}`).once('value');
-    const role = roleSnap.val() || 'passenger';
-    await db.ref(`users/${user.uid}`).set({ phone, role, displayName: phone, createdAt: Date.now() });
-  }
+firebase.auth().signInAnonymously().catch(() => {});
 
-  const role = (await db.ref(`users/${user.uid}/role`).once('value')).val();
-  if (role !== 'driver') {
-    await firebase.auth().signOut();
-    showErr('This number is not registered as a driver. Contact your conductor.');
-    return;
-  }
-
+function pinLogin() {
+  const name = document.getElementById('nameInput').value.trim();
+  const pin = document.getElementById('pinInput').value.trim();
+  if (!name) { showErr('Enter your name.'); return; }
+  if (pin !== DRIVER_PIN) { showErr('Incorrect PIN. Try again.'); return; }
+  driverName = name;
+  sessionStorage.setItem('tc_role', 'driver');
+  sessionStorage.setItem('tc_name', name);
   document.getElementById('signOutBtn').style.display = 'block';
   show('appScreen');
   requestNotificationPermission();
   listenForSummons();
-});
-
-function sendOTP() {
-  const phone = document.getElementById('phoneInput').value.trim();
-  if (!phone) { showErr('Enter your phone number.'); return; }
-  if (!recaptchaVerifier) recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', { size: 'normal' });
-  firebase.auth().signInWithPhoneNumber(phone, recaptchaVerifier)
-    .then(r => { confirmationResult = r; document.getElementById('otpCard').style.display = 'block'; })
-    .catch(e => showErr(e.message));
-}
-
-function verifyOTP() {
-  const code = document.getElementById('otpInput').value.trim();
-  if (!code || !confirmationResult) return;
-  confirmationResult.confirm(code).catch(() => showErr('Invalid OTP. Try again.'));
 }
 
 function signOut() {
   if (myTaxiId) goOffline();
-  firebase.auth().signOut();
+  sessionStorage.removeItem('tc_role');
+  sessionStorage.removeItem('tc_name');
   document.getElementById('signOutBtn').style.display = 'none';
+  show('authScreen');
 }
 
 function showErr(m) { const e = document.getElementById('authError'); e.textContent = m; e.style.display = 'block'; }
+
+// Auto-login if session still active
+const _savedRole = sessionStorage.getItem('tc_role');
+if (_savedRole === 'driver') {
+  driverName = sessionStorage.getItem('tc_name') || 'Driver';
+  firebase.auth().signInAnonymously().then(() => {
+    document.getElementById('signOutBtn').style.display = 'block';
+    show('appScreen');
+    requestNotificationPermission();
+    listenForSummons();
+  });
+}
 
 // ── Summon listener ───────────────────────────────────────────────
 function listenForSummons() {
@@ -240,21 +225,14 @@ function selectRoute(r) {
 
 // ── Go Live / Offline ─────────────────────────────────────────────
 async function goLive() {
-  if (!currentUser) return;
-  const displayName = (await db.ref(`users/${currentUser.uid}/displayName`).once('value')).val() || currentUser.phoneNumber;
-
-  // Remove any existing taxi for this driver
-  const existing = await db.ref('taxis').orderByChild('driverId').equalTo(currentUser.uid).once('value');
-  existing.forEach(child => child.ref.remove());
-
   const taxiRef = db.ref('taxis').push();
   myTaxiId = taxiRef.key;
   myCapacity = capacity;
   liveOnboard = onboard;
 
   await taxiRef.set({
-    driverId: currentUser.uid,
-    driverName: displayName,
+    driverId: myTaxiId,
+    driverName,
     route: selectedRoute,
     capacity,
     passengersOnboard: onboard,

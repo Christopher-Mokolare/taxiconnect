@@ -65,18 +65,10 @@
 <!-- AUTH -->
 <div id="authScreen" class="screen active">
   <div class="card" style="margin-top:20px">
-    <h3>Sign In</h3>
-    <p style="font-size:13px;color:#666;margin-bottom:4px">Enter your phone number to get started.</p>
-    <input type="tel" id="phoneInput" placeholder="+27 82 123 4567" />
-    <div id="recaptcha-container"></div>
-    <button class="btn btn-primary" onclick="sendOTP()">Send OTP</button>
+    <h3>Welcome</h3>
+    <p style="font-size:13px;color:#666;margin-bottom:8px">No sign-in needed. Just tap your route to see available taxis.</p>
+    <button class="btn btn-primary" onclick="enterApp()">🚕 Find a Taxi</button>
   </div>
-  <div class="card" id="otpCard" style="display:none">
-    <h3>Enter OTP</h3>
-    <input type="tel" id="otpInput" class="otp-input" placeholder="000000" maxlength="6" />
-    <button class="btn btn-primary" onclick="verifyOTP()">Verify & Continue</button>
-  </div>
-  <div id="authError" class="alert a-danger" style="display:none;margin-top:10px"></div>
 </div>
 
 <!-- APP -->
@@ -111,52 +103,25 @@
 <script>
 firebase.initializeApp(FIREBASE_CONFIG);
 const db = firebase.database();
-let confirmationResult = null, recaptchaVerifier = null;
 let selectedRoute = 'SUN_CITY', groupSize = 1;
-let myWaitId = null, currentUser = null, allTaxis = {};
+let myWaitId = null, allTaxis = {};
 
 // ── Auth ──────────────────────────────────────────────────────────
-firebase.auth().onAuthStateChanged(async (user) => {
-  if (!user) { show('authScreen'); return; }
-  currentUser = user;
-
-  // Auto-assign passenger role on first login
-  const snap = await db.ref(`users/${user.uid}`).once('value');
-  if (!snap.exists()) {
-    const phone = user.phoneNumber;
-    const key = phone.replace(/[^0-9]/g, '');
-    const roleSnap = await db.ref(`approvedPhones/${key}`).once('value');
-    const role = roleSnap.val() || 'passenger';
-    await db.ref(`users/${user.uid}`).set({ phone, role, displayName: phone, createdAt: Date.now() });
-  }
-
-  document.getElementById('signOutBtn').style.display = 'block';
-  show('appScreen');
+firebase.auth().signInAnonymously().then(() => {
   db.ref('taxis').on('value', s => { allTaxis = s.val() || {}; renderTaxis(); });
-});
+}).catch(() => {});
 
-function sendOTP() {
-  const phone = document.getElementById('phoneInput').value.trim();
-  if (!phone) { showErr('Enter your phone number.'); return; }
-  if (!recaptchaVerifier) recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', { size: 'normal' });
-  firebase.auth().signInWithPhoneNumber(phone, recaptchaVerifier)
-    .then(r => { confirmationResult = r; document.getElementById('otpCard').style.display = 'block'; })
-    .catch(e => showErr(e.message));
-}
-
-function verifyOTP() {
-  const code = document.getElementById('otpInput').value.trim();
-  if (!code || !confirmationResult) return;
-  confirmationResult.confirm(code).catch(() => showErr('Invalid OTP. Try again.'));
+function enterApp() {
+  show('appScreen');
 }
 
 function signOut() {
   if (myWaitId) cancelSignal();
-  firebase.auth().signOut();
+  show('authScreen');
   document.getElementById('signOutBtn').style.display = 'none';
 }
 
-function showErr(m) { const e = document.getElementById('authError'); e.textContent = m; e.style.display = 'block'; }
+function showErr(m) { const e = document.getElementById('authError'); if(e){ e.textContent = m; e.style.display = 'block'; } }
 
 // ── Taxis ─────────────────────────────────────────────────────────
 function renderTaxis() {
@@ -169,12 +134,12 @@ function renderTaxis() {
   el.innerHTML = taxis.map(([,t]) => {
     const needed = (t.capacity||14) - (t.passengersOnboard||0);
     const badge = needed <= 0 ? `<span class="badge b-red">FULL</span>`
-      : needed <= 3 ? `<span class="badge b-orange">🔥 ${needed} left</span>`
-      : `<span class="badge b-green">🪑 ${needed} seats</span>`;
+      : needed <= 3 ? `<span class="badge b-orange">🔥 ${needed} seat${needed===1?'':'s'} left</span>`
+      : `<span class="badge b-green">🪑 ${needed} seats free</span>`;
     const status = needed <= 0 ? 'Leaving soon' : needed <= 3 ? 'Almost full — hurry!' : '🟢 Loading passengers';
     return `<div class="taxi-row">
       <div class="row-header"><strong style="font-size:14px">${t.driverName}</strong>${badge}</div>
-      <div class="meta">${status}</div>
+      <div class="meta">${status} · ${t.passengersOnboard||0}/${t.capacity||14} onboard</div>
     </div>`;
   }).join('');
 }
@@ -194,13 +159,10 @@ function adjGroup(d) {
 
 // ── Waiting signal ────────────────────────────────────────────────
 async function sendSignal() {
-  if (!currentUser) return;
-  // Remove any existing signal from this user
-  if (myWaitId) await db.ref(`waitingPassengers/${myWaitId}`).remove();
-
-  const ref = db.ref('waitingPassengers').push();
-  myWaitId = ref.key;
-  await ref.set({ route: selectedRoute, groupSize, passengerId: currentUser.uid, timestamp: Date.now() });
+  const user = firebase.auth().currentUser;
+  if (!user) return;
+  myWaitId = user.uid;
+  await db.ref(`waitingPassengers/${myWaitId}`).set({ route: selectedRoute, groupSize, passengerId: user.uid, timestamp: Date.now() });
 
   // Update demand heatmap
   db.ref(`demandHeatmap/${selectedRoute}`).transaction(cur => ({

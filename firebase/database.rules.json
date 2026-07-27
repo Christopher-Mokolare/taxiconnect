@@ -1,28 +1,12 @@
 {
   "rules": {
-    "users": {
-      "$uid": {
-        ".read": "auth != null && auth.uid === $uid",
-        ".write": "auth != null && auth.uid === $uid",
-        ".validate": "newData.hasChildren(['phone','role']) && newData.child('role').val().matches(/^(driver|conductor|passenger)$/)"
-      }
-    },
-
-    "approvedPhones": {
-      ".read": "auth != null",
-      ".write": false
-    },
-
     "taxis": {
-      ".indexOn": ["route", "status", "driverId"],
+      ".indexOn": ["route", "status"],
       ".read": "auth != null",
+      ".write": "auth != null",
       "$taxiId": {
-        ".write": "auth != null && (
-          !data.exists() && newData.child('driverId').val() === auth.uid ||
-          data.exists() && data.child('driverId').val() === auth.uid ||
-          root.child('users/' + auth.uid + '/role').val() === 'conductor'
-        )",
-        ".validate": "newData.hasChildren(['driverName','route','capacity','passengersOnboard','status','driverId','lastUpdated']) &&
+        ".write": "auth != null",
+        ".validate": "newData.hasChildren(['driverName','route','capacity','passengersOnboard','status','lastUpdated']) &&
           (newData.child('route').val() === 'SUN_CITY' || newData.child('route').val() === 'RUSTENBURG') &&
           newData.child('capacity').isNumber() &&
           newData.child('capacity').val() >= 1 &&
@@ -30,42 +14,39 @@
           newData.child('passengersOnboard').isNumber() &&
           newData.child('passengersOnboard').val() >= 0 &&
           newData.child('passengersOnboard').val() <= newData.child('capacity').val() &&
-          newData.child('driverId').val() === auth.uid &&
-          newData.child('status').val().matches(/^(loading|full|departed|breakdown)$/)"
+          newData.child('status').val().matches(/^(loading|full|departed|breakdown)/)"
       }
     },
 
     "waitingPassengers": {
       ".indexOn": ["route", "timestamp"],
       ".read": "auth != null",
+      ".write": "auth != null",
       "$waitId": {
-        ".write": "auth != null && (
-          !data.exists() && newData.child('passengerId').val() === auth.uid ||
-          data.exists() && data.child('passengerId').val() === auth.uid ||
-          root.child('users/' + auth.uid + '/role').val() === 'conductor'
-        )",
+        ".write": "auth != null",
         ".validate": "!newData.exists() || (
           newData.hasChildren(['route','groupSize','timestamp','passengerId']) &&
           (newData.child('route').val() === 'SUN_CITY' || newData.child('route').val() === 'RUSTENBURG') &&
           newData.child('groupSize').isNumber() &&
           newData.child('groupSize').val() >= 1 &&
-          newData.child('groupSize').val() <= 10 &&
-          newData.child('passengerId').val() === auth.uid
+          newData.child('groupSize').val() <= 10
         )"
       }
     },
 
+    "summons": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+
     "demandHeatmap": {
       ".read": "auth != null",
-      "$route": {
-        ".write": "auth != null",
-        ".validate": "newData.hasChildren(['count','lastUpdated'])"
-      }
+      ".write": "auth != null"
     },
 
     "history": {
-      ".read": "auth != null && root.child('users/' + auth.uid + '/role').val() === 'conductor'",
-      ".write": "auth != null && root.child('users/' + auth.uid + '/role').val() === 'conductor'"
+      ".read": "auth != null",
+      ".write": "auth != null"
     }
   }
 }
