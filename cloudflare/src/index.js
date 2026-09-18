@@ -26,6 +26,49 @@ const TERMINAL_TRIP_STATUSES = [
   "OFFLINE"
 ];
 
+const TRIP_STATUS_TRANSITIONS = {
+  LOADING: new Set([
+    "LOADING",
+    "FULL",
+    "DEPARTED",
+    "CANCELLED",
+    "OFFLINE"
+  ]),
+  COLLECTING: new Set([
+    "COLLECTING",
+    "FULL",
+    "DEPARTED",
+    "CANCELLED",
+    "OFFLINE"
+  ]),
+  FULL: new Set([
+    "FULL",
+    "LOADING",
+    "COLLECTING",
+    "DEPARTED",
+    "CANCELLED",
+    "OFFLINE"
+  ]),
+  DEPARTED: new Set([
+    "DEPARTED",
+    "ARRIVED"
+  ]),
+  ARRIVED: new Set(["ARRIVED"]),
+  CANCELLED: new Set(["CANCELLED"]),
+  OFFLINE: new Set(["OFFLINE"])
+};
+
+function assertTripStatusTransition(currentStatus, requestedStatus) {
+  const allowed = TRIP_STATUS_TRANSITIONS[currentStatus];
+
+  if (!allowed || !allowed.has(requestedStatus)) {
+    throw new HttpError(
+      `Invalid trip status transition: ${currentStatus} → ${requestedStatus}.`,
+      409
+    );
+  }
+}
+
 const OPERATOR_ROLES = new Set([
   "driver",
   "conductor",
@@ -1281,9 +1324,12 @@ async function updateDriverPassengers(env, auth, body) {
     );
   }
 
-  if (TERMINAL_TRIP_STATUSES.includes(trip.status)) {
+  if (
+    TERMINAL_TRIP_STATUSES.includes(trip.status) ||
+    trip.status === "DEPARTED"
+  ) {
     throw new HttpError(
-      "Passenger count cannot be changed on a completed trip.",
+      "Passenger count can only be changed while the taxi is loading or collecting.",
       409
     );
   }
@@ -1400,6 +1446,11 @@ async function updateDriverTripStatus(env, auth, body) {
       409
     );
   }
+
+  assertTripStatusTransition(
+    trip.status,
+    requestedStatus
+  );
 
   const timestamp = now();
 
