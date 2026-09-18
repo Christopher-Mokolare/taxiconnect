@@ -37,6 +37,8 @@ jobs:
           mkdir -p ci-migrations
           for f in migrations/000[1-9]_*.sql; do cp "$f" "ci-migrations/$(basename "$f")"; done
           cat > ci-migrations/0010_prepare_taxi_columns.sql <<'SQL'
+          ALTER TABLE users ADD COLUMN last_seen_at INTEGER;
+          ALTER TABLE users ADD COLUMN phone TEXT;
           ALTER TABLE taxis ADD COLUMN operator_id TEXT;
           ALTER TABLE taxis ADD COLUMN vehicle_registration_number TEXT;
           ALTER TABLE taxis ADD COLUMN active INTEGER NOT NULL DEFAULT 1;
