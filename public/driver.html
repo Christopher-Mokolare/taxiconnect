@@ -153,6 +153,19 @@ button:not(.btn):not(.btn-link):not(.cbtn):hover{transform:translateY(-1px);box-
 @media(prefers-reduced-motion:reduce){
   *,*:before,*:after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition:none!important}
 }
+</style><style id="taxiconnect-ux-driver">
+.tc-rolebar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;border-radius:14px;background:#eef2ff;color:#3730a3;font-size:12px;font-weight:800;margin-bottom:12px}
+.tc-rolebar span:last-child{color:#667085;font-weight:650}
+.tc-hero{padding:24px 20px!important;color:#fff!important;background:linear-gradient(135deg,#111827,#312e81 58%,#635bff)!important;position:relative;overflow:hidden}
+.tc-hero h2{color:#fff!important;font-size:25px!important;margin:5px 0!important;letter-spacing:-.03em}
+.tc-hero p{color:rgba(255,255,255,.76);margin:0;line-height:1.5;font-size:13px}
+.tc-eyebrow{font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;opacity:.72}
+.tc-stepbar{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:12px 0}
+.tc-step{font-size:10px;text-align:center;font-weight:800;color:#98a2b3;padding:7px 2px;border-bottom:2px solid #e4e7ec}
+.tc-step.active{color:#4338ca;border-color:#635bff}.tc-step.done{color:#12b76a;border-color:#12b76a}
+.tc-live-pill{display:inline-flex;padding:6px 10px;border-radius:999px;background:#ecfdf3;color:#027a48;font-size:11px;font-weight:850}
+.tc-form-note{padding:11px 12px;border-radius:12px;background:#f8fafc;border:1px solid #eaecf0;color:#667085;font-size:12px;line-height:1.5;margin-top:10px}
+@media(max-width:600px){.tc-hero h2{font-size:22px!important}}
 </style></head>
 <body>
 <header>
@@ -162,7 +175,12 @@ button:not(.btn):not(.btn-link):not(.cbtn):hover{transform:translateY(-1px);box-
 
 <!-- AUTH -->
 <div id="authScreen" class="screen active">
-  <div class="card" style="margin-top:20px">
+  <div class="card tc-hero" style="margin-top:20px">
+    <div class="tc-eyebrow">Driver operations</div>
+    <h2>Start your shift in seconds.</h2>
+    <p>Choose your assigned taxi and route, set your starting journey, then go live when you're ready to load passengers.</p>
+  </div>
+  <div class="card" style="margin-top:12px">
     <h3>Driver Sign In</h3>
     <p style="font-size:13px;color:#666;margin-bottom:4px">Enter your name and the driver PIN.</p>
     <input type="text" id="nameInput" placeholder="Your name (e.g. John)" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:14px;margin-top:6px" />
@@ -174,10 +192,23 @@ button:not(.btn):not(.btn-link):not(.cbtn):hover{transform:translateY(-1px);box-
 
 <!-- APP -->
 <div id="appScreen" class="screen">
+  <div class="tc-rolebar"><span>Today's shift</span><span>TaxiConnect Driver</span></div>
+  <div id="driverHero" class="card tc-hero">
+    <div class="tc-eyebrow">Ready for dispatch</div>
+    <h2>Get your taxi on the road.</h2>
+    <p>Set your taxi, route and journey before going live. Passenger demand will update as you work.</p>
+  </div>
+  <div class="tc-stepbar" aria-label="Driver workflow">
+    <div class="tc-step active">1 · Taxi</div>
+    <div class="tc-step">2 · Route</div>
+    <div class="tc-step">3 · Load</div>
+    <div class="tc-step">4 · Depart</div>
+  </div>
   <div id="summonBanner" class="summon-banner"></div>
 
   <div id="checkInCard" class="card" style="margin-top:10px">
-    <h3>Go Live</h3>
+    <h3>Start a trip</h3>
+    <div class="tc-form-note">Pick the vehicle and route first. Your FROM and TO points define the journey passengers are requesting.</div>
 
     <label style="font-size:12px;color:#666;margin-top:4px;display:block">
       Taxi
@@ -264,7 +295,7 @@ button:not(.btn):not(.btn-link):not(.cbtn):hover{transform:translateY(-1px);box-
   </div>
 
   <div id="liveCard" class="card" style="display:none;margin-top:10px">
-    <h3>You Are Live</h3>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><h3 style="margin:0">Trip is live</h3><span class="tc-live-pill">● LIVE</span></div>
 
     <div id="liveInfo"></div>
 
