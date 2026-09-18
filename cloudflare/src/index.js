@@ -497,8 +497,7 @@ async function requireOperatorMembership(env, userId, allowedRoles = []) {
     allowedRoles.includes(row.membership_role)
   );
 
-  if (!membership) {
-    throw new HttpError(
+  if (!membership) {    throw new HttpError(
       "No active operator membership for this account.",
       403
     );
@@ -997,8 +996,7 @@ async function routeList(env) {
   `)
     .all();
 
-  return result.results || [];
-}
+  return result.results || [];}
 
 async function driverRoutes(env, driverId) {
   const result = await env.DB.prepare(`
@@ -1498,7 +1496,6 @@ async function updateDriverTripStatus(env, auth, body) {
         tripId,
         auth.user.id
       ),
-
     env.DB.prepare(`
       UPDATE taxis
       SET
@@ -1997,8 +1994,7 @@ async function passengerWaiting(env, request, body) {
       group_size = ?,
       updated_at = ?,
       request_mode = ?,
-      latitude = ?,
-      longitude = ?,
+      latitude = ?,      longitude = ?,
       pickup_description = ?,
       origin_point_id = ?,
       destination_point_id = ?
@@ -2497,8 +2493,7 @@ async function passengerCancelWaiting(env, request, body) {
   ]);
 
   await broadcast(env, "passenger_waiting_cancelled", {
-    waitingId,
-    routeId: waiting.route_id
+    waitingId,    routeId: waiting.route_id
   });
 
   return ok({
@@ -2997,7 +2992,6 @@ async function conductorReplaceTaxi(env, auth, body) {
     entry.operator_id,
     ["conductor", "operator_admin"]
   );
-
   await getTaxiForOperator(
     env,
     entry.operator_id,
@@ -3497,8 +3491,7 @@ async function operatorCreateTaxi(env, auth, body) {
     FROM operators
     WHERE id = ?
       AND active = 1
-    LIMIT 1
-  `)
+    LIMIT 1  `)
     .bind(operatorId)
     .first();
 
@@ -3997,8 +3990,7 @@ async function superadminCreateOperator(env, auth, body) {
         active,
         created_at,
         updated_at
-      )
-    VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)
+      )    VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)
   `)
     .bind(
       operatorId,
@@ -4278,331 +4270,6 @@ async function superadminAuthorizeOperatorRoute(
   });
 }
 
-async function adminStats(env, operatorId = null) {
-  const operatorFilter = operatorId ? " AND t.operator_id = ? " : "";
-  const params = operatorId ? [operatorId] : [];
-  const operators = operatorId ? { results: [{ count: 1 }] } : await env.DB.prepare("SELECT COUNT(*) AS count FROM operators WHERE active = 1").all();
-  const routes = await env.DB.prepare("SELECT COUNT(*) AS count FROM routes WHERE active = 1").all();
-  const taxis = await env.DB.prepare(`SELECT COUNT(*) AS count FROM taxis t WHERE t.active = 1${operatorFilter}`).bind(...params).all();
-  const trips = await env.DB.prepare(`SELECT COUNT(*) AS count FROM trips tr JOIN taxis t ON t.id = tr.taxi_id WHERE tr.status IN ('LOADING','COLLECTING','FULL','DEPARTED')${operatorFilter}`).bind(...params).all();
-  const waiting = await env.DB.prepare(`SELECT COUNT(*) AS count FROM route_waiting_passengers rw WHERE rw.status = 'WAITING'${operatorId ? " AND EXISTS (SELECT 1 FROM operator_routes orr WHERE orr.operator_id = ? AND orr.route_id = rw.route_id AND orr.active = 1)" : ""}`).bind(...(operatorId ? [operatorId] : [])).all();
-  const incidents = await env.DB.prepare(`SELECT COUNT(*) AS count FROM system_incidents WHERE status IN ('OPEN','ACKNOWLEDGED')${operatorId ? " AND operator_id = ?" : ""}`).bind(...params).all();
-  return {
-    operators:Number(operators.results?.[0]?.count ?? 0),
-    routes:Number(routes.results?.[0]?.count ?? 0),
-    activeTaxis:Number(taxis.results?.[0]?.count ?? 0),
-    activeTrips:Number(trips.results?.[0]?.count ?? 0),
-    waitingPassengers:Number(waiting.results?.[0]?.count ?? 0),
-    openIncidents:Number(incidents.results?.[0]?.count ?? 0)
-  };
-}
-async function adminSuperadminDashboard(env){ return ok({stats:await adminStats(env)}); }
-async function adminOperatorDashboard(env,auth,url){
-  const operatorId=requireString(url.searchParams.get("operatorId"),"operatorId");
-  await requireSpecificOperatorMembership(env,auth.user.id,operatorId,["operator_admin"]);
-  return ok({stats:await adminStats(env,operatorId)});
-}
-async function adminSuperadminOperators(env){
-  const r=await env.DB.prepare(`SELECT o.id,o.name,o.registration_number,o.phone,o.email,o.address,o.active,o.created_at,o.updated_at,COUNT(DISTINCT om.id) AS member_count,COUNT(DISTINCT orr.id) AS route_count FROM operators o LEFT JOIN operator_memberships om ON om.operator_id=o.id AND om.active=1 LEFT JOIN operator_routes orr ON orr.operator_id=o.id AND orr.active=1 GROUP BY o.id ORDER BY o.name`).all();
-  return ok({operators:r.results||[]});
-}
-async function adminSuperadminUsers(env,url){
-  const limit=Math.min(Math.max(Number(url.searchParams.get("limit")||500),1),1000);
-  const r=await env.DB.prepare(`SELECT id,name,role,system_role,active,phone,created_at,last_login_at,last_seen_at FROM users ORDER BY created_at DESC LIMIT ?`).bind(limit).all();
-  return ok({users:r.results||[]});
-}
-async function adminSuperadminRoutes(env){
-  const r=await env.DB.prepare(`SELECT r.id,r.origin,r.destination,r.name,r.service_mode,r.active,r.created_at,r.updated_at,COUNT(DISTINCT orr.operator_id) AS operator_count,COUNT(DISTINCT tr.taxi_id) AS taxi_count FROM routes r LEFT JOIN operator_routes orr ON orr.route_id=r.id AND orr.active=1 LEFT JOIN taxi_routes tr ON tr.route_id=r.id AND tr.active=1 GROUP BY r.id ORDER BY r.name`).all();
-  return ok({routes:r.results||[]});
-}
-async function adminOperatorUsers(env,auth,url){
-  const operatorId=requireString(url.searchParams.get("operatorId"),"operatorId");
-  await requireSpecificOperatorMembership(env,auth.user.id,operatorId,["operator_admin"]);
-  const r=await env.DB.prepare(`SELECT u.id,u.name,u.role,u.system_role,u.active,u.phone,om.membership_role,om.created_at AS membership_created_at FROM operator_memberships om JOIN users u ON u.id=om.user_id WHERE om.operator_id=? AND om.active=1 ORDER BY u.name`).bind(operatorId).all();
-  return ok({users:r.results||[]});
-}
-async function adminOperatorFleet(env,auth,url){
-  const operatorId=requireString(url.searchParams.get("operatorId"),"operatorId");
-  await requireSpecificOperatorMembership(env,auth.user.id,operatorId,["operator_admin"]);
-  const r=await env.DB.prepare(`SELECT t.id,t.vehicle_registration_number,t.capacity,t.status,t.passengers_onboard,t.active,t.driver_id,t.driver_name,t.last_updated,COUNT(DISTINCT tr.route_id) AS route_count FROM taxis t LEFT JOIN taxi_routes tr ON tr.taxi_id=t.id AND tr.active=1 WHERE t.operator_id=? GROUP BY t.id ORDER BY t.vehicle_registration_number`).bind(operatorId).all();
-  return ok({taxis:r.results||[]});
-}
-async function adminOperatorRoutes(env,auth,url){
-  const operatorId=requireString(url.searchParams.get("operatorId"),"operatorId");
-  await requireSpecificOperatorMembership(env,auth.user.id,operatorId,["operator_admin"]);
-  const r=await env.DB.prepare(`SELECT r.id,r.origin,r.destination,r.name,r.service_mode,orr.authorized_at,COUNT(DISTINCT tr.taxi_id) AS taxi_count FROM operator_routes orr JOIN routes r ON r.id=orr.route_id LEFT JOIN taxi_routes tr ON tr.route_id=r.id AND tr.active=1 AND tr.taxi_id IN (SELECT id FROM taxis WHERE operator_id=?) WHERE orr.operator_id=? AND orr.active=1 AND r.active=1 GROUP BY r.id ORDER BY r.name`).bind(operatorId,operatorId).all();
-  return ok({routes:r.results||[]});
-}
-async function adminOperatorOperations(env,auth,url){
-  const operatorId=requireString(url.searchParams.get("operatorId"),"operatorId");
-  await requireSpecificOperatorMembership(env,auth.user.id,operatorId,["operator_admin"]);
-  const s=await env.DB.prepare(`SELECT COUNT(*) AS trips,SUM(CASE WHEN tr.status IN ('LOADING','COLLECTING','FULL','DEPARTED') THEN 1 ELSE 0 END) AS activeTrips FROM trips tr JOIN taxis t ON t.id=tr.taxi_id WHERE t.operator_id=?`).bind(operatorId).first();
-  const w=await env.DB.prepare(`SELECT COUNT(*) AS count FROM route_waiting_passengers rw WHERE rw.status='WAITING' AND EXISTS(SELECT 1 FROM operator_routes orr WHERE orr.operator_id=? AND orr.route_id=rw.route_id AND orr.active=1)`).bind(operatorId).first();
-  const d=await env.DB.prepare(`SELECT COUNT(*) AS count FROM demand_signals ds WHERE ds.status='ACTIVE' AND EXISTS(SELECT 1 FROM operator_routes orr WHERE orr.operator_id=? AND orr.route_id=ds.route_id AND orr.active=1)`).bind(operatorId).first();
-  const t=await env.DB.prepare(`SELECT tr.id,r.name AS route_name,tr.status,tr.passengers_onboard,tr.capacity,tr.seats_remaining,tr.started_at,tr.last_updated,t.vehicle_registration_number,t.driver_name FROM trips tr JOIN taxis t ON t.id=tr.taxi_id JOIN routes r ON r.id=tr.route_id WHERE t.operator_id=? ORDER BY tr.started_at DESC LIMIT 500`).bind(operatorId).all();
-  return ok({stats:{trips:Number(s?.trips??0),activeTrips:Number(s?.activeTrips??0),waiting:Number(w?.count??0),demand:Number(d?.count??0)},trips:t.results||[]});
-}
-async function adminAudit(env,auth,url){
-  const operatorId=url.searchParams.get("operatorId");
-  if(operatorId && auth.user.role!=="superadmin") await requireSpecificOperatorMembership(env,auth.user.id,operatorId,["operator_admin"]);
-  if(!operatorId && auth.user.role!=="superadmin") throw new HttpError("operatorId is required for operator audit access.",400);
-  const limit=Math.min(Math.max(Number(url.searchParams.get("limit")||200),1),1000);
-  const r=await env.DB.prepare(`SELECT id,actor_user_id,operator_id,action,entity_type,entity_id,details_json,timestamp FROM audit_logs ${operatorId?"WHERE operator_id=?":""} ORDER BY timestamp DESC LIMIT ?`).bind(...(operatorId?[operatorId,limit]:[limit])).all();
-  return ok({logs:r.results||[]});
-}
-async function adminIncidents(env,auth,url){
-  const operatorId=url.searchParams.get("operatorId");
-  if(auth.user.role!=="superadmin") await requireSpecificOperatorMembership(env,auth.user.id,operatorId,["operator_admin"]);
-  const limit=Math.min(Math.max(Number(url.searchParams.get("limit")||200),1),1000);
-  const r=await env.DB.prepare(`SELECT si.*,o.name AS operator_name,r.name AS route_name,u.name AS actor_name FROM system_incidents si LEFT JOIN operators o ON o.id=si.operator_id LEFT JOIN routes r ON r.id=si.route_id LEFT JOIN users u ON u.id=si.actor_user_id ${operatorId?"WHERE si.operator_id=?":""} ORDER BY si.created_at DESC LIMIT ?`).bind(...(operatorId?[operatorId,limit]:[limit])).all();
-  return ok({incidents:r.results||[]});
-}
-async function adminSetOperatorStatus(env,auth,body){
-  const operatorId=requireString(body.operatorId,"operatorId");
-  const active=body.active?1:0;
-  const row=await env.DB.prepare("SELECT id,active FROM operators WHERE id=? LIMIT 1").bind(operatorId).first();
-  if(!row) throw new HttpError("Operator not found.",404);
-  await env.DB.prepare("UPDATE operators SET active=?,updated_at=? WHERE id=?").bind(active,now(),operatorId).run();
-  await writeAudit(env,{actorUserId:auth.user.id,action:active?"OPERATOR_ACTIVATED":"OPERATOR_DEACTIVATED",entityType:"operator",entityId:operatorId,details:{previousActive:row.active,active}});
-  return ok({operatorId,active});
-}
-async function adminProvisionOperatorUser(env,auth,body){
-  const operatorId=requireString(body.operatorId,"operatorId"),name=requireString(body.name,"name"),role=requireString(body.role,"role");
-  if(!["driver","conductor"].includes(role)) throw new HttpError("Only driver and conductor users can be provisioned by an Operator Admin.",400);
-  await requireSpecificOperatorMembership(env,auth.user.id,operatorId,["operator_admin"]);
-  const phone=normalizePhone(body.phone);
-  const duplicate=await env.DB.prepare("SELECT id FROM users WHERE lower(name)=lower(?) AND role=? AND active=1 LIMIT 1").bind(name,role).first();
-  if(duplicate) throw new HttpError("An active user with this name and role already exists.",409);
-  const timestamp=now(),userId=id(role);
-  await env.DB.batch([
-    env.DB.prepare("INSERT INTO users (id,name,role,active,phone,created_at,last_seen_at) VALUES (?,?,?,1,?,?,?)").bind(userId,name,role,phone,timestamp,timestamp),
-    env.DB.prepare("INSERT INTO operator_memberships (id,operator_id,user_id,membership_role,active,created_at,updated_at) VALUES (?,?,?,?,1,?,?)").bind(id("membership"),operatorId,userId,role,timestamp,timestamp)
-  ]);
-  await writeAudit(env,{actorUserId:auth.user.id,operatorId,action:"OPERATOR_USER_PROVISIONED",entityType:"user",entityId:userId,details:{name,role}});
-  return ok({user:{id:userId,name,role,phone,active:1}});
-}
-async function adminSetUserStatus(env,auth,body){
-  const userId=requireString(body.userId,"userId"),active=body.active?1:0;
-  const user=await env.DB.prepare("SELECT id,name,role,system_role,active FROM users WHERE id=? LIMIT 1").bind(userId).first();
-  if(!user) throw new HttpError("User not found.",404);
-  if(auth.user.role!=="superadmin"){
-    const allowed=await env.DB.prepare(`SELECT 1 FROM operator_memberships target JOIN operator_memberships admin ON admin.operator_id=target.operator_id WHERE target.user_id=? AND target.active=1 AND admin.user_id=? AND admin.membership_role='operator_admin' AND admin.active=1 LIMIT 1`).bind(userId,auth.user.id).first();
-    if(!allowed) throw new HttpError("User is outside your operator scope.",403);
-  }
-  await env.DB.prepare("UPDATE users SET active=?,last_seen_at=? WHERE id=?").bind(active,now(),userId).run();
-  if(!active) await env.DB.prepare("UPDATE operator_memberships SET active=0,updated_at=? WHERE user_id=?").bind(now(),userId).run();
-  await writeAudit(env,{actorUserId:auth.user.id,action:active?"USER_ACTIVATED":"USER_DEACTIVATED",entityType:"user",entityId:userId,details:{active}});
-  return ok({userId,active});
-}
-async function adminAcknowledgeIncident(env,auth,body){
-  const incidentId=requireString(body.incidentId,"incidentId");
-  const row=await env.DB.prepare("SELECT id,operator_id FROM system_incidents WHERE id=? LIMIT 1").bind(incidentId).first();
-  if(!row) throw new HttpError("Incident not found.",404);
-  if(auth.user.role!=="superadmin") await requireSpecificOperatorMembership(env,auth.user.id,row.operator_id,["operator_admin"]);
-  await env.DB.prepare("UPDATE system_incidents SET status='ACKNOWLEDGED',acknowledged_at=?,acknowledged_by=? WHERE id=?").bind(now(),auth.user.id,incidentId).run();
-  await writeAudit(env,{actorUserId:auth.user.id,operatorId:row.operator_id,action:"INCIDENT_ACKNOWLEDGED",entityType:"system_incident",entityId:incidentId});
-  return ok({incidentId,status:"ACKNOWLEDGED"});
-}
-async function adminResolveIncident(env,auth,body){
-  const incidentId=requireString(body.incidentId,"incidentId");
-  const row=await env.DB.prepare("SELECT id,operator_id FROM system_incidents WHERE id=? LIMIT 1").bind(incidentId).first();
-  if(!row) throw new HttpError("Incident not found.",404);
-  if(auth.user.role!=="superadmin") await requireSpecificOperatorMembership(env,auth.user.id,row.operator_id,["operator_admin"]);
-  await env.DB.prepare("UPDATE system_incidents SET status='RESOLVED',resolved_at=?,resolved_by=? WHERE id=?").bind(now(),auth.user.id,incidentId).run();
-  await writeAudit(env,{actorUserId:auth.user.id,operatorId:row.operator_id,action:"INCIDENT_RESOLVED",entityType:"system_incident",entityId:incidentId});
-  return ok({incidentId,status:"RESOLVED"});
-}
-
-async function adminProvisionSystemUser(env, auth, body) {
-  const role = requireString(body.role, "role");
-  if (!["operator_admin","superadmin"].includes(role)) {
-    throw new HttpError("Invalid system role.", 400);
-  }
-
-  const name = requireString(body.name, "name");
-  const phone = normalizePhone(body.phone);
-
-  const duplicate = await env.DB.prepare(`
-    SELECT id FROM users
-    WHERE lower(name) = lower(?)
-      AND system_role = ?
-      AND active = 1
-    LIMIT 1
-  `).bind(name, role).first();
-
-  if (duplicate) {
-    throw new HttpError("An active system user with this name and role already exists.", 409);
-  }
-
-  const timestamp = now();
-  const userId = id(role);
-
-  await env.DB.prepare(`
-    INSERT INTO users
-      (id,name,role,system_role,active,phone,created_at,last_seen_at)
-    VALUES (?,?,'passenger',?,1,?,?,?)
-  `).bind(
-    userId,
-    name,
-    role,
-    phone,
-    timestamp,
-    timestamp
-  ).run();
-
-  await writeAudit(env, {
-    actorUserId: auth.user.id,
-    action: "SYSTEM_USER_PROVISIONED",
-    entityType: "user",
-    entityId: userId,
-    details: { name, role }
-  });
-
-  return ok({
-    user: {
-      id: userId,
-      name,
-      role: "passenger",
-      systemRole: role,
-      phone,
-      active: 1
-    }
-  });
-}
-
-async function superadminRoutePoints(env, auth, routeId) {
-  await requireRole(
-    new Request("https://internal/", {
-      headers: {
-        Authorization: `Bearer ${await createSession(env, auth.user)}`
-      }
-    }),
-    env,
-    ["superadmin"]
-  );
-
-  const route = await getRoute(env, routeId);
-  return ok({ route });
-}
-
-async function superadminAddRoutePoint(env, auth, body) {
-  const routeId = requireString(body.routeId, "routeId");
-  const name = requireString(body.name, "name");
-  const pointType = requireString(body.pointType, "pointType");
-
-  if (!["RANK","PICKUP","DROP_OFF"].includes(pointType)) {
-    throw new HttpError("Invalid pointType.", 400);
-  }
-
-  await getRoute(env, routeId);
-
-  const requestedSequence = body.sequence == null
-    ? null
-    : integer(body.sequence, "sequence", 0);
-
-  const maxRow = await env.DB.prepare(`
-    SELECT COALESCE(MAX(sequence), -1) AS max_sequence
-    FROM route_pickup_points
-    WHERE route_id = ?
-  `).bind(routeId).first();
-
-  const sequence = requestedSequence == null
-    ? Number(maxRow?.max_sequence ?? -1) + 1
-    : requestedSequence;
-
-  const timestamp = now();
-  const pointId = id("pickup");
-
-  await env.DB.prepare(`
-    INSERT INTO route_pickup_points
-      (id,route_id,name,point_type,sequence,latitude,longitude,address,active,created_at,updated_at)
-    VALUES (?,?,?,?,?,?,?,?,1,?,?)
-  `).bind(
-    pointId,
-    routeId,
-    name,
-    pointType,
-    sequence,
-    body.latitude == null ? null : Number(body.latitude),
-    body.longitude == null ? null : Number(body.longitude),
-    body.address ? String(body.address).trim() : null,
-    timestamp,
-    timestamp
-  ).run();
-
-  await writeAudit(env,{
-    actorUserId:auth.user.id,
-    action:"ROUTE_POINT_CREATED",
-    entityType:"route_pickup_point",
-    entityId:pointId,
-    details:{routeId,name,pointType,sequence}
-  });
-
-  return ok({ point: { id:pointId,routeId,name,pointType,sequence,active:1 } });
-}
-
-async function superadminSetRoutePointStatus(env, auth, body) {
-  const pointId = requireString(body.pointId, "pointId");
-  const active = body.active ? 1 : 0;
-
-  const point = await env.DB.prepare(`
-    SELECT id,route_id,active
-    FROM route_pickup_points
-    WHERE id = ?
-    LIMIT 1
-  `).bind(pointId).first();
-
-  if (!point) throw new HttpError("Route point not found.",404);
-
-  await env.DB.prepare(`
-    UPDATE route_pickup_points
-    SET active = ?, updated_at = ?
-    WHERE id = ?
-  `).bind(active,now(),pointId).run();
-
-  await writeAudit(env,{
-    actorUserId:auth.user.id,
-    action:active ? "ROUTE_POINT_ACTIVATED" : "ROUTE_POINT_DEACTIVATED",
-    entityType:"route_pickup_point",
-    entityId:pointId,
-    details:{routeId:point.route_id,active}
-  });
-
-  return ok({pointId,active});
-}
-
-async function superadminRevokeOperatorRoute(env, auth, body) {
-  const operatorId = requireString(body.operatorId, "operatorId");
-  const routeId = requireString(body.routeId, "routeId");
-
-  const row = await env.DB.prepare(`
-    SELECT id,active
-    FROM operator_routes
-    WHERE operator_id = ?
-      AND route_id = ?
-    LIMIT 1
-  `).bind(operatorId,routeId).first();
-
-  if (!row) throw new HttpError("Operator route authorization not found.",404);
-
-  await env.DB.prepare(`
-    UPDATE operator_routes
-    SET active = 0, revoked_at = ?
-    WHERE id = ?
-  `).bind(now(),row.id).run();
-
-  await writeAudit(env,{
-    actorUserId:auth.user.id,
-    operatorId,
-    action:"OPERATOR_ROUTE_REVOKED",
-    entityType:"operator_route",
-    entityId:row.id,
-    details:{routeId}
-  });
-
-  return ok({operatorId,routeId,active:0});
-}
-
 async function authLogin(env, body) {
   const role = requireString(
     body.role,
@@ -4777,6 +4444,508 @@ async function authLogin(env, body) {
 }
 
 
+
+async function platformDashboard(env) {
+  const queries = await Promise.all([
+    env.DB.prepare("SELECT COUNT(*) AS count FROM operators WHERE active = 1").first(),
+    env.DB.prepare("SELECT COUNT(*) AS count FROM routes WHERE active = 1").first(),
+    env.DB.prepare("SELECT COUNT(*) AS count FROM users WHERE active = 1").first(),
+    env.DB.prepare("SELECT COUNT(*) AS count FROM taxis WHERE active = 1").first(),
+    env.DB.prepare("SELECT COUNT(*) AS count FROM trips WHERE status IN ('LOADING','COLLECTING','FULL','DEPARTED')").first(),
+    env.DB.prepare("SELECT COUNT(*) AS count FROM system_incidents WHERE status IN ('OPEN','ACKNOWLEDGED')").first()
+  ]);
+  return {
+    operators: Number(queries[0]?.count || 0),
+    routes: Number(queries[1]?.count || 0),
+    users: Number(queries[2]?.count || 0),
+    taxis: Number(queries[3]?.count || 0),
+    activeTrips: Number(queries[4]?.count || 0),
+    openIncidents: Number(queries[5]?.count || 0)
+  };
+}
+
+async function platformOperators(env) {
+  const result = await env.DB.prepare(`
+    SELECT
+      o.*,
+      COUNT(DISTINCT om.user_id) FILTER (WHERE om.active = 1) AS member_count,
+      COUNT(DISTINCT orr.route_id) FILTER (WHERE orr.active = 1) AS route_count,
+      COUNT(DISTINCT t.id) FILTER (WHERE t.active = 1) AS taxi_count
+    FROM operators o
+    LEFT JOIN operator_memberships om ON om.operator_id = o.id
+    LEFT JOIN operator_routes orr ON orr.operator_id = o.id
+    LEFT JOIN taxis t ON t.operator_id = o.id
+    GROUP BY o.id
+    ORDER BY o.name
+  `).all();
+  return result.results || [];
+}
+
+async function platformRoutes(env) {
+  const result = await env.DB.prepare(`
+    SELECT
+      r.*,
+      COUNT(DISTINCT orr.operator_id) FILTER (WHERE orr.active = 1) AS operator_count,
+      COUNT(DISTINCT tr.taxi_id) FILTER (WHERE tr.active = 1) AS authorized_taxi_count
+    FROM routes r
+    LEFT JOIN operator_routes orr ON orr.route_id = r.id
+    LEFT JOIN taxi_routes tr ON tr.route_id = r.id    GROUP BY r.id
+    ORDER BY r.name
+  `).all();
+  return result.results || [];
+}
+
+async function platformUsers(env) {
+  const result = await env.DB.prepare(`
+    SELECT
+      u.id,
+      u.name,
+      u.role,
+      u.system_role,
+      u.phone,
+      u.active,
+      u.created_at,
+      u.last_login_at,
+      u.last_seen_at,
+      GROUP_CONCAT(DISTINCT o.name) AS operators
+    FROM users u
+    LEFT JOIN operator_memberships om ON om.user_id = u.id AND om.active = 1
+    LEFT JOIN operators o ON o.id = om.operator_id
+    GROUP BY u.id
+    ORDER BY u.name
+  `).all();
+  return result.results || [];
+}
+
+async function platformTaxis(env) {
+  const result = await env.DB.prepare(`
+    SELECT
+      t.*,
+      o.name AS operator_name,
+      COUNT(DISTINCT tr.route_id) FILTER (WHERE tr.active = 1) AS authorized_route_count
+    FROM taxis t
+    LEFT JOIN operators o ON o.id = t.operator_id
+    LEFT JOIN taxi_routes tr ON tr.taxi_id = t.id
+    GROUP BY t.id
+    ORDER BY o.name, t.vehicle_registration_number
+  `).all();
+  return result.results || [];
+}
+
+async function platformTrips(env) {
+  const result = await env.DB.prepare(`
+    SELECT
+      tr.*,
+      t.vehicle_registration_number,
+      o.name AS operator_name,
+      u.name AS driver_account_name
+    FROM trips tr
+    JOIN taxis t ON t.id = tr.taxi_id
+    LEFT JOIN operators o ON o.id = t.operator_id
+    LEFT JOIN users u ON u.id = t.driver_id
+    ORDER BY tr.started_at DESC
+    LIMIT 500
+  `).all();
+  return result.results || [];
+}
+
+async function platformAudit(env, url) {
+  const limit = Math.min(Math.max(Number(url.searchParams.get("limit") || 200), 1), 500);
+  const result = await env.DB.prepare(`
+    SELECT
+      a.*,
+      u.name AS actor_name,
+      o.name AS operator_name
+    FROM audit_logs a
+    LEFT JOIN users u ON u.id = a.actor_user_id
+    LEFT JOIN operators o ON o.id = a.operator_id
+    ORDER BY a.timestamp DESC
+    LIMIT ?
+  `).bind(limit).all();
+  return result.results || [];
+}
+
+async function platformIncidents(env, url) {
+  const limit = Math.min(Math.max(Number(url.searchParams.get("limit") || 200), 1), 500);
+  const result = await env.DB.prepare(`
+    SELECT
+      i.*,
+      u.name AS resolved_by_name
+    FROM system_incidents i
+    LEFT JOIN users u ON u.id = i.resolved_by
+    ORDER BY i.created_at DESC
+    LIMIT ?
+  `).bind(limit).all();
+  return result.results || [];
+}
+
+async function recordIncident(env, {
+  severity = "ERROR",
+  source = "api",
+  message,
+  stack = null,
+  requestPath = null,
+  requestMethod = null,
+  actorUserId = null,
+  operatorId = null,
+  metadata = {}
+}) {
+  try {
+    await env.DB.prepare(`
+      INSERT INTO system_incidents
+        (id, severity, source, message, stack, request_path, request_method,
+         actor_user_id, operator_id, metadata_json, status, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'OPEN', ?)
+    `).bind(
+      id("incident"),
+      severity,
+      source,
+      String(message || "Unknown error").slice(0, 4000),
+      stack ? String(stack).slice(0, 12000) : null,
+      requestPath,
+      requestMethod,
+      actorUserId,
+      operatorId,
+      JSON.stringify(metadata || {}),
+      now()
+    ).run();
+  } catch {
+    // Never mask the original failure with incident logging failure.
+  }
+}
+
+async function setOperatorActive(env, auth, operatorId, active) {
+  const operator = await env.DB.prepare("SELECT id, name FROM operators WHERE id = ? LIMIT 1").bind(operatorId).first();
+  if (!operator) throw new HttpError("Operator not found.", 404);
+
+  await env.DB.prepare("UPDATE operators SET active = ?, updated_at = ? WHERE id = ?")
+    .bind(active ? 1 : 0, now(), operatorId).run();
+
+  if (!active) {
+    await env.DB.prepare("UPDATE operator_memberships SET active = 0, updated_at = ? WHERE operator_id = ?")
+      .bind(now(), operatorId).run();
+    await env.DB.prepare("UPDATE operator_routes SET active = 0, revoked_at = ? WHERE operator_id = ? AND active = 1")
+      .bind(now(), operatorId).run();
+    await env.DB.prepare("UPDATE taxis SET active = 0, last_updated = ? WHERE operator_id = ?")
+      .bind(now(), operatorId).run();
+  }
+
+  await writeAudit(env, {
+    actorUserId: auth.user.id,
+    operatorId,
+    action: active ? "OPERATOR_ACTIVATED" : "OPERATOR_DEACTIVATED",
+    entityType: "operator",
+    entityId: operatorId
+  });
+
+  return ok({ operatorId, active: active ? 1 : 0 });
+}
+
+async function setRouteActive(env, auth, routeId, active) {
+  const route = await getRoute(env, routeId);
+  await env.DB.prepare("UPDATE routes SET active = ?, updated_at = ? WHERE id = ?")
+    .bind(active ? 1 : 0, now(), routeId).run();
+
+  if (!active) {
+    await env.DB.prepare("UPDATE operator_routes SET active = 0, revoked_at = ? WHERE route_id = ? AND active = 1")
+      .bind(now(), routeId).run();
+    await env.DB.prepare("UPDATE taxi_routes SET active = 0, revoked_at = ? WHERE route_id = ? AND active = 1")
+      .bind(now(), routeId).run();
+  }
+
+  await writeAudit(env, {
+    actorUserId: auth.user.id,
+    action: active ? "ROUTE_ACTIVATED" : "ROUTE_DEACTIVATED",
+    entityType: "route",
+    entityId: routeId
+  });
+
+  return ok({ routeId, active: active ? 1 : 0 });
+}
+
+async function createOperationalMember(env, auth, body) {
+  const membership = await requireOperatorMembership(env, auth.user.id, ["operator_admin"]);
+  const name = requireString(body.name, "name");
+  const role = requireString(body.role, "role");
+  if (!["driver", "conductor"].includes(role)) {
+    throw new HttpError("role must be driver or conductor.", 400);
+  }
+
+  const phone = normalizePhone(body.phone);
+  const userId = id(role);
+  const timestamp = now();
+
+  await env.DB.prepare(`
+    INSERT INTO users (id, name, role, active, created_at, last_seen_at)
+    VALUES (?, ?, ?, 1, ?, ?)
+  `).bind(userId, name, role, timestamp, timestamp).run();
+
+  await env.DB.prepare(`
+    INSERT INTO operator_memberships
+      (id, operator_id, user_id, membership_role, active, created_at, updated_at)
+    VALUES (?, ?, ?, ?, 1, ?, ?)
+  `).bind(id("membership"), membership.operator_id, userId, role, timestamp, timestamp).run();
+
+  if (phone) {
+    await env.DB.prepare("UPDATE users SET phone = ? WHERE id = ?").bind(phone, userId).run();
+  }
+
+  await writeAudit(env, {
+    actorUserId: auth.user.id,
+    operatorId: membership.operator_id,
+    action: "OPERATIONAL_MEMBER_CREATED",
+    entityType: "user",
+    entityId: userId,
+    details: { role, phone }
+  });
+
+  return ok({ user: { id: userId, name, role, phone, active: 1 } });
+}
+
+async function setMemberActive(env, auth, userId, active) {
+  const membership = await requireOperatorMembership(env, auth.user.id, ["operator_admin"]);
+  const member = await env.DB.prepare(`
+    SELECT id, membership_role FROM operator_memberships
+    WHERE operator_id = ? AND user_id = ? AND active = 1
+    LIMIT 1
+  `).bind(membership.operator_id, userId).first();
+
+  if (!member) throw new HttpError("Operator member not found.", 404);
+
+  await env.DB.prepare("UPDATE users SET active = ? WHERE id = ?")
+    .bind(active ? 1 : 0, userId).run();
+  await env.DB.prepare("UPDATE operator_memberships SET active = ?, updated_at = ? WHERE operator_id = ? AND user_id = ?")
+    .bind(active ? 1 : 0, now(), membership.operator_id, userId).run();
+
+  if (!active && member.membership_role === "driver") {
+    await env.DB.prepare("UPDATE taxi_driver_assignments SET active = 0, ended_at = ? WHERE driver_id = ? AND active = 1")
+      .bind(now(), userId).run();
+  }
+
+  await writeAudit(env, {
+    actorUserId: auth.user.id,
+    operatorId: membership.operator_id,
+    action: active ? "MEMBER_ACTIVATED" : "MEMBER_DEACTIVATED",
+    entityType: "user",
+    entityId: userId
+  });
+
+  return ok({ userId, active: active ? 1 : 0 });
+}
+
+async function operatorOverview(env, auth) {
+  const membership = await requireOperatorMembership(env, auth.user.id, ["operator_admin"]);
+  const operatorId = membership.operator_id;
+
+  const [operator, members, taxis, routes, activeTrips] = await Promise.all([
+    env.DB.prepare("SELECT * FROM operators WHERE id = ? LIMIT 1").bind(operatorId).first(),
+    env.DB.prepare(`
+      SELECT u.id,u.name,u.role,u.phone,u.active,om.membership_role
+      FROM operator_memberships om JOIN users u ON u.id=om.user_id
+      WHERE om.operator_id=? ORDER BY u.name
+    `).bind(operatorId).all(),
+    env.DB.prepare(`
+      SELECT t.*, COUNT(DISTINCT tr.route_id) FILTER (WHERE tr.active=1) AS authorized_route_count
+      FROM taxis t LEFT JOIN taxi_routes tr ON tr.taxi_id=t.id
+      WHERE t.operator_id=? GROUP BY t.id ORDER BY t.vehicle_registration_number
+    `).bind(operatorId).all(),
+    env.DB.prepare(`
+      SELECT r.*, orr.active AS authorized
+      FROM operator_routes orr JOIN routes r ON r.id=orr.route_id
+      WHERE orr.operator_id=? ORDER BY r.name
+    `).bind(operatorId).all(),
+    env.DB.prepare(`
+      SELECT COUNT(*) AS count FROM trips tr JOIN taxis t ON t.id=tr.taxi_id
+      WHERE t.operator_id=? AND tr.status IN ('LOADING','COLLECTING','FULL','DEPARTED')
+    `).bind(operatorId).first()
+  ]);
+
+  return ok({
+    operator,
+    members: members.results || [],
+    taxis: taxis.results || [],
+    routes: routes.results || [],
+    activeTrips: Number(activeTrips?.count || 0)
+  });
+}
+
+async function operatorRoutePoints(env, auth, routeId) {
+  const membership = await requireOperatorMembership(env, auth.user.id, ["operator_admin"]);
+  await getAuthorizedOperatorRoute(env, membership.operator_id, routeId);
+  const route = await getRoute(env, routeId);
+  return ok({ route, pickupPoints: route.pickupPoints });
+}
+
+async function upsertOperatorRoutePoint(env, auth, body) {
+  const membership = await requireOperatorMembership(env, auth.user.id, ["operator_admin"]);
+  const routeId = requireString(body.routeId, "routeId");
+  await getAuthorizedOperatorRoute(env, membership.operator_id, routeId);
+  const pointType = requireString(body.pointType, "pointType");
+  if (!["RANK","PICKUP","DROP_OFF"].includes(pointType)) throw new HttpError("Invalid pointType.", 400);
+  const name = requireString(body.name, "name");
+  const pointId = body.id ? String(body.id) : id("pickup");
+  const timestamp = now();
+
+  if (body.id) {
+    const existing = await env.DB.prepare("SELECT id FROM route_pickup_points WHERE id=? AND route_id=? LIMIT 1")
+      .bind(pointId, routeId).first();
+    if (!existing) throw new HttpError("Route point not found.", 404);
+    await env.DB.prepare(`
+      UPDATE route_pickup_points
+      SET name=?, point_type=?, sequence=?, latitude=?, longitude=?, address=?, active=?, updated_at=?
+      WHERE id=? AND route_id=?
+    `).bind(
+      name, pointType, Number(body.sequence ?? 0),
+      body.latitude == null ? null : Number(body.latitude),
+      body.longitude == null ? null : Number(body.longitude),
+      body.address ? String(body.address).trim() : null,
+      body.active === false ? 0 : 1, timestamp, pointId, routeId
+    ).run();
+  } else {
+    await env.DB.prepare(`
+      INSERT INTO route_pickup_points
+        (id,route_id,name,point_type,sequence,latitude,longitude,address,active,created_at,updated_at)
+      VALUES (?,?,?,?,?,?,?,?,1,?,?)
+    `).bind(
+      pointId, routeId, name, pointType, Number(body.sequence ?? 0),
+      body.latitude == null ? null : Number(body.latitude),
+      body.longitude == null ? null : Number(body.longitude),
+      body.address ? String(body.address).trim() : null, timestamp, timestamp
+    ).run();
+  }
+
+  await writeAudit(env, {
+    actorUserId: auth.user.id,
+    operatorId: membership.operator_id,
+    action: body.id ? "ROUTE_POINT_UPDATED" : "ROUTE_POINT_CREATED",
+    entityType: "route_pickup_point",
+    entityId: pointId,
+    details: { routeId, pointType, name }
+  });
+
+  return ok({ point: await env.DB.prepare("SELECT * FROM route_pickup_points WHERE id=? LIMIT 1").bind(pointId).first() });
+}
+
+async function deactivateTaxi(env, auth, taxiId, active) {
+  const membership = await requireOperatorMembership(env, auth.user.id, ["operator_admin"]);
+  const taxi = await getTaxiForOperator(env, membership.operator_id, taxiId);
+
+  await env.DB.prepare("UPDATE taxis SET active=?, last_updated=? WHERE id=?")
+    .bind(active ? 1 : 0, now(), taxiId).run();
+
+  if (!active) {
+    await env.DB.prepare("UPDATE taxi_routes SET active=0, revoked_at=? WHERE taxi_id=? AND active=1")
+      .bind(now(), taxiId).run();
+    await env.DB.prepare("UPDATE taxi_driver_assignments SET active=0, ended_at=? WHERE taxi_id=? AND active=1")
+      .bind(now(), taxiId).run();
+  }
+
+  await writeAudit(env, {
+    actorUserId: auth.user.id,
+    operatorId: membership.operator_id,
+    action: active ? "TAXI_ACTIVATED" : "TAXI_DEACTIVATED",
+    entityType: "taxi",
+    entityId: taxiId,
+    details: { registration: taxi.vehicle_registration_number }
+  });
+
+  return ok({ taxiId, active: active ? 1 : 0 });
+}
+
+async function operatorRevokeRoute(env, auth, routeId) {
+  const membership = await requireOperatorMembership(env, auth.user.id, ["operator_admin"]);
+  await getAuthorizedOperatorRoute(env, membership.operator_id, routeId);
+  await env.DB.prepare("UPDATE operator_routes SET active=0, revoked_at=? WHERE operator_id=? AND route_id=?")
+    .bind(now(), membership.operator_id, routeId).run();
+  await writeAudit(env, {
+    actorUserId: auth.user.id,
+    operatorId: membership.operator_id,
+    action: "OPERATOR_ROUTE_REVOKED",
+    entityType: "operator_route",
+    entityId: routeId
+  });
+  return ok({ operatorId: membership.operator_id, routeId, active: 0 });
+}
+
+async function platformHealth(env) {
+  const [incidents, activeTrips, waiting, demand] = await Promise.all([
+    env.DB.prepare("SELECT severity, COUNT(*) AS count FROM system_incidents WHERE status='OPEN' GROUP BY severity").all(),
+    env.DB.prepare("SELECT COUNT(*) AS count FROM trips WHERE status IN ('LOADING','COLLECTING','FULL','DEPARTED')").first(),
+    env.DB.prepare("SELECT COUNT(*) AS count FROM route_waiting_passengers WHERE status='WAITING'").first(),
+    env.DB.prepare("SELECT COUNT(*) AS count FROM demand_signals WHERE signal_type='DEMAND' AND status='ACTIVE'").first()
+  ]);
+  return ok({
+    status: "OK",
+    activeTrips: Number(activeTrips?.count || 0),
+    waitingPassengers: Number(waiting?.count || 0),
+    activeDemandSignals: Number(demand?.count || 0),
+    openIncidents: incidents.results || []
+  });
+}
+
+async function superadminCreateOperatorAdmin(env, auth, body) {
+  const operatorId = requireString(body.operatorId, "operatorId");
+  const name = requireString(body.name, "name");
+  const phone = normalizePhone(body.phone);
+  const operator = await env.DB.prepare("SELECT id, name FROM operators WHERE id=? AND active=1 LIMIT 1").bind(operatorId).first();
+  if (!operator) throw new HttpError("Operator not found.", 404);
+
+  const userId = id("operator_admin");
+  const timestamp = now();
+  await env.DB.prepare(`
+    INSERT INTO users (id,name,role,system_role,active,created_at,last_seen_at)
+    VALUES (?,?,'passenger','operator_admin',1,?,?)
+  `).bind(userId,name,timestamp,timestamp).run();
+  if (phone) await env.DB.prepare("UPDATE users SET phone=? WHERE id=?").bind(phone,userId).run();
+
+  const membershipId = id("membership");
+  await env.DB.prepare(`
+    INSERT INTO operator_memberships
+      (id,operator_id,user_id,membership_role,active,created_at,updated_at)
+    VALUES (?, ?, ?, 'operator_admin', 1, ?, ?)
+  `).bind(membershipId,operatorId,userId,timestamp,timestamp).run();
+
+  await writeAudit(env,{actorUserId:auth.user.id,operatorId,action:"OPERATOR_ADMIN_CREATED",entityType:"user",entityId:userId,details:{name,phone}});
+  return ok({user:{id:userId,name,role:"operator_admin",phone,active:1},membershipId});
+}
+
+async function operatorAssignDriverToTaxi(env, auth, body) {
+  const operatorId=requireString(body.operatorId,"operatorId");
+  const taxiId=requireString(body.taxiId,"taxiId");
+  const driverId=requireString(body.driverId,"driverId");
+  await requireSpecificOperatorMembership(env,auth.user.id,operatorId,["operator_admin"]);
+  await getTaxiForOperator(env,operatorId,taxiId);
+  const driver=await env.DB.prepare(`
+    SELECT u.id,u.name FROM users u
+    JOIN operator_memberships om ON om.user_id=u.id
+    WHERE u.id=? AND om.operator_id=? AND om.membership_role='driver'
+      AND om.active=1 AND u.active=1 LIMIT 1
+  `).bind(driverId,operatorId).first();
+  if(!driver) throw new HttpError("Driver is not an active member of this operator.",403);
+
+  await env.DB.prepare("UPDATE taxi_driver_assignments SET active=0, ended_at=? WHERE taxi_id=? AND active=1")
+    .bind(now(),taxiId).run();
+  await env.DB.prepare("UPDATE taxis SET driver_id=?,driver_name=?,last_updated=? WHERE id=?")
+    .bind(driverId,driver.name,now(),taxiId).run();
+  await env.DB.prepare(`
+    INSERT INTO taxi_driver_assignments (id,taxi_id,driver_id,active,assigned_at)
+    VALUES (?,?,?,1,?)
+  `).bind(id("assignment"),taxiId,driverId,now()).run();
+
+  await writeAudit(env,{actorUserId:auth.user.id,operatorId,action:"DRIVER_ASSIGNED_TO_TAXI",entityType:"taxi",entityId:taxiId,details:{driverId,driverName:driver.name}});
+  return ok({taxiId,driverId,driverName:driver.name});
+}
+
+async function operatorAuthorizeTaxiRouteFromAdmin(env, auth, body) {
+  const operatorId=requireString(body.operatorId,"operatorId");
+  const taxiId=requireString(body.taxiId,"taxiId");
+  const routeId=requireString(body.routeId,"routeId");
+  await requireSpecificOperatorMembership(env,auth.user.id,operatorId,["operator_admin"]);
+  await getTaxiForOperator(env,operatorId,taxiId);
+  await getAuthorizedOperatorRoute(env,operatorId,routeId);
+  return await operatorAuthorizeTaxiRoute(env,auth,body);
+}
+
 async function handleApi(request, env) {
   const url = new URL(request.url);
   const path = url.pathname;
@@ -4819,8 +4988,7 @@ async function handleApi(request, env) {
     const body = await readJson(request);
 
     return await authLogin(
-      env,
-      body
+      env,      body
     );
   }
 
@@ -4857,6 +5025,148 @@ async function handleApi(request, env) {
       loggedOut: true,
       cookie: `${SESSION_COOKIE}=; Max-Age=0; Path=/; HttpOnly; Secure; SameSite=Lax`
     });
+  }
+
+  if (path === "/api/superadmin/operator-admin/create" && method === "POST") {
+    const auth = await requireRole(request, env, ["superadmin"]);
+    return await superadminCreateOperatorAdmin(env, auth, await readJson(request));
+  }
+
+  if (path === "/api/operator/taxi/assign-driver" && method === "POST") {
+    const auth = await requireRole(request, env, ["operator_admin"]);
+    return await operatorAssignDriverToTaxi(env, auth, await readJson(request));
+  }
+
+  if (path === "/api/operator/taxi/authorize-route" && method === "POST") {
+    const auth = await requireRole(request, env, ["operator_admin"]);
+    return await operatorAuthorizeTaxiRouteFromAdmin(env, auth, await readJson(request));
+  }
+
+  if (path === "/api/superadmin/dashboard" && method === "GET") {
+    await requireRole(request, env, ["superadmin"]);
+    return ok({ dashboard: await platformDashboard(env) });
+  }
+
+  if (path === "/api/superadmin/operators" && method === "GET") {
+    await requireRole(request, env, ["superadmin"]);
+    return ok({ operators: await platformOperators(env) });
+  }
+
+  if (path === "/api/superadmin/routes" && method === "GET") {
+    await requireRole(request, env, ["superadmin"]);
+    return ok({ routes: await platformRoutes(env) });
+  }
+
+  if (path === "/api/superadmin/users" && method === "GET") {
+    await requireRole(request, env, ["superadmin"]);
+    return ok({ users: await platformUsers(env) });
+  }
+
+  if (path === "/api/superadmin/taxis" && method === "GET") {
+    await requireRole(request, env, ["superadmin"]);
+    return ok({ taxis: await platformTaxis(env) });
+  }
+
+  if (path === "/api/superadmin/trips" && method === "GET") {
+    await requireRole(request, env, ["superadmin"]);
+    return ok({ trips: await platformTrips(env) });
+  }
+
+  if (path === "/api/superadmin/audit" && method === "GET") {
+    await requireRole(request, env, ["superadmin"]);
+    return ok({ audit: await platformAudit(env, url) });
+  }
+
+  if (path === "/api/superadmin/incidents" && method === "GET") {
+    await requireRole(request, env, ["superadmin"]);
+    return ok({ incidents: await platformIncidents(env, url) });
+  }
+
+  if (path === "/api/superadmin/incident/status" && method === "POST") {
+    const auth = await requireRole(request, env, ["superadmin"]);
+    const body = await readJson(request);
+    const incidentId = requireString(body.incidentId, "incidentId");
+    const status = requireString(body.status, "status");
+    if (!["OPEN","ACKNOWLEDGED","RESOLVED"].includes(status)) {
+      throw new HttpError("Invalid incident status.", 400);
+    }
+    const timestamp = now();
+    const fields = status === "ACKNOWLEDGED"
+      ? "status = ?, acknowledged_at = ?"
+      : status === "RESOLVED"
+        ? "status = ?, resolved_at = ?, resolved_by = ?"
+        : "status = ?";
+    const values = status === "ACKNOWLEDGED"
+      ? [status, timestamp, incidentId]
+      : status === "RESOLVED"
+        ? [status, timestamp, auth.user.id, incidentId]
+        : [status, incidentId];
+    await env.DB.prepare(
+      `UPDATE system_incidents SET ${fields} WHERE id = ?`
+    ).bind(...values).run();
+    await writeAudit(env, {
+      actorUserId: auth.user.id,
+      action: "INCIDENT_STATUS_CHANGED",
+      entityType: "system_incident",
+      entityId: incidentId,
+      details: { status }
+    });
+    return ok({ incidentId, status });
+  }
+
+  if (path === "/api/superadmin/health" && method === "GET") {
+    await requireRole(request, env, ["superadmin"]);
+    return await platformHealth(env);
+  }
+
+  if (path === "/api/superadmin/operator/status" && method === "POST") {
+    const auth = await requireRole(request, env, ["superadmin"]);
+    const body = await readJson(request);
+    return await setOperatorActive(env, auth, requireString(body.operatorId, "operatorId"), body.active !== false);
+  }
+
+  if (path === "/api/superadmin/route/status" && method === "POST") {
+    const auth = await requireRole(request, env, ["superadmin"]);
+    const body = await readJson(request);
+    return await setRouteActive(env, auth, requireString(body.routeId, "routeId"), body.active !== false);
+  }
+
+  if (path === "/api/operator/overview" && method === "GET") {
+    const auth = await requireRole(request, env, ["operator_admin"]);
+    return await operatorOverview(env, auth);
+  }
+
+  if (path === "/api/operator/members/create" && method === "POST") {
+    const auth = await requireRole(request, env, ["operator_admin"]);
+    return await createOperationalMember(env, auth, await readJson(request));
+  }
+
+  if (path === "/api/operator/member/status" && method === "POST") {
+    const auth = await requireRole(request, env, ["operator_admin"]);
+    const body = await readJson(request);
+    return await setMemberActive(env, auth, requireString(body.userId, "userId"), body.active !== false);
+  }
+
+  if (path === "/api/operator/taxi/status" && method === "POST") {
+    const auth = await requireRole(request, env, ["operator_admin"]);
+    const body = await readJson(request);
+    return await deactivateTaxi(env, auth, requireString(body.taxiId, "taxiId"), body.active !== false);
+  }
+
+  if (path === "/api/operator/route/revoke" && method === "POST") {
+    const auth = await requireRole(request, env, ["operator_admin"]);
+    const body = await readJson(request);
+    return await operatorRevokeRoute(env, auth, requireString(body.routeId, "routeId"));
+  }
+
+  if (path === "/api/operator/route-points" && method === "GET") {
+    const auth = await requireRole(request, env, ["operator_admin"]);
+    return await operatorRoutePoints(env, auth, requireString(url.searchParams.get("routeId"), "routeId"));
+  }
+
+  if (path === "/api/operator/route-points" && method === "POST") {
+    const auth = await requireRole(request, env, ["operator_admin"]);
+    return await upsertOperatorRoutePoint(env, auth, await readJson(request));
   }
 
   if (
@@ -5177,8 +5487,7 @@ async function handleApi(request, env) {
         "routeId"
       );
 
-    if (lineSessionId) {
-      const line =
+    if (lineSessionId) {      const line =
         await getLine(
           env,
           lineSessionId
@@ -5292,112 +5601,6 @@ async function handleApi(request, env) {
       auth,
       await readJson(request)
     );
-  }
-
-  if (path === "/api/admin/superadmin/dashboard" && method === "GET") {
-    await requireRole(request, env, ["superadmin"]);
-    return await adminSuperadminDashboard(env);
-  }
-
-  if (path === "/api/admin/superadmin/operators" && method === "GET") {
-    await requireRole(request, env, ["superadmin"]);
-    return await adminSuperadminOperators(env);
-  }
-
-  if (path === "/api/admin/superadmin/routes" && method === "GET") {
-    await requireRole(request, env, ["superadmin"]);
-    return await adminSuperadminRoutes(env);
-  }
-
-  if (path === "/api/admin/superadmin/users" && method === "GET") {
-    await requireRole(request, env, ["superadmin"]);
-    return await adminSuperadminUsers(env, url);
-  }
-
-  if (path === "/api/admin/superadmin/user/provision" && method === "POST") {
-    const auth = await requireRole(request, env, ["superadmin"]);
-    return await adminProvisionSystemUser(env, auth, await readJson(request));
-  }
-
-  if (path.match(/^\/api\/admin\/superadmin\/route\/([^/]+)\/points$/) && method === "GET") {
-    const auth = await requireRole(request, env, ["superadmin"]);
-    const routeId = path.match(/^\/api\/admin\/superadmin\/route\/([^/]+)\/points$/)[1];
-    return await superadminRoutePoints(env, auth, routeId);
-  }
-
-  if (path === "/api/admin/superadmin/route/point" && method === "POST") {
-    const auth = await requireRole(request, env, ["superadmin"]);
-    return await superadminAddRoutePoint(env, auth, await readJson(request));
-  }
-
-  if (path === "/api/admin/superadmin/route/point/status" && method === "POST") {
-    const auth = await requireRole(request, env, ["superadmin"]);
-    return await superadminSetRoutePointStatus(env, auth, await readJson(request));
-  }
-
-  if (path === "/api/admin/superadmin/operator/revoke-route" && method === "POST") {
-    const auth = await requireRole(request, env, ["superadmin"]);
-    return await superadminRevokeOperatorRoute(env, auth, await readJson(request));
-  }
-
-  if (path === "/api/admin/superadmin/operator/status" && method === "POST") {
-    const auth = await requireRole(request, env, ["superadmin"]);
-    return await adminSetOperatorStatus(env, auth, await readJson(request));
-  }
-
-  if (path === "/api/admin/operator/dashboard" && method === "GET") {
-    const auth = await requireRole(request, env, ["operator_admin"]);
-    return await adminOperatorDashboard(env, auth, url);
-  }
-
-  if (path === "/api/admin/operator/users" && method === "GET") {
-    const auth = await requireRole(request, env, ["operator_admin"]);
-    return await adminOperatorUsers(env, auth, url);
-  }
-
-  if (path === "/api/admin/operator/fleet" && method === "GET") {
-    const auth = await requireRole(request, env, ["operator_admin"]);
-    return await adminOperatorFleet(env, auth, url);
-  }
-
-  if (path === "/api/admin/operator/routes" && method === "GET") {
-    const auth = await requireRole(request, env, ["operator_admin"]);
-    return await adminOperatorRoutes(env, auth, url);
-  }
-
-  if (path === "/api/admin/operator/operations" && method === "GET") {
-    const auth = await requireRole(request, env, ["operator_admin"]);
-    return await adminOperatorOperations(env, auth, url);
-  }
-
-  if (path === "/api/admin/operator/user/provision" && method === "POST") {
-    const auth = await requireRole(request, env, ["operator_admin"]);
-    return await adminProvisionOperatorUser(env, auth, await readJson(request));
-  }
-
-  if (path === "/api/admin/user/status" && method === "POST") {
-    const auth = await requireRole(request, env, ["superadmin", "operator_admin"]);
-    return await adminSetUserStatus(env, auth, await readJson(request));
-  }
-
-  if (path === "/api/admin/audit" && method === "GET") {
-    const auth = await requireRole(request, env, ["superadmin", "operator_admin"]);
-    return await adminAudit(env, auth, url);
-  }
-
-  if (path === "/api/admin/incidents" && method === "GET") {
-    const auth = await requireRole(request, env, ["superadmin", "operator_admin"]);
-    return await adminIncidents(env, auth, url);
-  }
-
-  if (path === "/api/admin/incidents/acknowledge" && method === "POST") {
-    const auth = await requireRole(request, env, ["superadmin", "operator_admin"]);
-    return await adminAcknowledgeIncident(env, auth, await readJson(request));
-  }
-
-  if (path === "/api/admin/incidents/resolve" && method === "POST") {
-    const auth = await requireRole(request, env, ["superadmin", "operator_admin"]);
-    return await adminResolveIncident(env, auth, await readJson(request));
   }
 
   if (
@@ -5714,47 +5917,19 @@ export default {
 
       console.error(error);
 
-      try {
-        const url = new URL(request.url);
-        const correlationId =
-          request.headers.get("X-Correlation-Id") ||
-          id("corr");
-
-        await env.DB.prepare(`
-          INSERT INTO system_incidents
-            (
-              id,
-              severity,
-              status,
-              source,
-              message,
-              correlation_id,
-              details_json,
-              created_at
-            )
-          VALUES (?, 'ERROR', 'OPEN', ?, ?, ?, ?, ?)
-        `).bind(
-          id("incident"),
-          url.pathname,
-          String(error?.message || "Unhandled Worker exception").slice(0, 1000),
-          correlationId,
-          JSON.stringify({
-            method: request.method,
-            pathname: url.pathname
-          }),
-          now()
-        ).run();
-      } catch (incidentError) {
-        console.error("Failed to persist system incident.", incidentError);
-      }
+      const requestUrl = new URL(request.url);
+      await recordIncident(env, {
+        severity: "ERROR",
+        source: "worker",
+        message: error?.message || "Internal server error.",
+        stack: error?.stack || null,
+        requestPath: requestUrl.pathname,
+        requestMethod: request.method
+      });
 
       return fail(
         "Internal server error.",
-        500,
-        {
-          correlationId:
-            request.headers.get("X-Correlation-Id") || null
-        }
+        500
       );
     }
   }
