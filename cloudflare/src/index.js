@@ -4278,6 +4278,141 @@ async function superadminAuthorizeOperatorRoute(
   });
 }
 
+async function adminStats(env, operatorId = null) {
+  const operatorFilter = operatorId ? " AND t.operator_id = ? " : "";
+  const params = operatorId ? [operatorId] : [];
+  const operators = operatorId ? { results: [{ count: 1 }] } : await env.DB.prepare("SELECT COUNT(*) AS count FROM operators WHERE active = 1").all();
+  const routes = await env.DB.prepare("SELECT COUNT(*) AS count FROM routes WHERE active = 1").all();
+  const taxis = await env.DB.prepare(`SELECT COUNT(*) AS count FROM taxis t WHERE t.active = 1${operatorFilter}`).bind(...params).all();
+  const trips = await env.DB.prepare(`SELECT COUNT(*) AS count FROM trips tr JOIN taxis t ON t.id = tr.taxi_id WHERE tr.status IN ('LOADING','COLLECTING','FULL','DEPARTED')${operatorFilter}`).bind(...params).all();
+  const waiting = await env.DB.prepare(`SELECT COUNT(*) AS count FROM route_waiting_passengers rw WHERE rw.status = 'WAITING'${operatorId ? " AND EXISTS (SELECT 1 FROM operator_routes orr WHERE orr.operator_id = ? AND orr.route_id = rw.route_id AND orr.active = 1)" : ""}`).bind(...(operatorId ? [operatorId] : [])).all();
+  const incidents = await env.DB.prepare(`SELECT COUNT(*) AS count FROM system_incidents WHERE status IN ('OPEN','ACKNOWLEDGED')${operatorId ? " AND operator_id = ?" : ""}`).bind(...params).all();
+  return {
+    operators:Number(operators.results?.[0]?.count ?? 0),
+    routes:Number(routes.results?.[0]?.count ?? 0),
+    activeTaxis:Number(taxis.results?.[0]?.count ?? 0),
+    activeTrips:Number(trips.results?.[0]?.count ?? 0),
+    waitingPassengers:Number(waiting.results?.[0]?.count ?? 0),
+    openIncidents:Number(incidents.results?.[0]?.count ?? 0)
+  };
+}
+async function adminSuperadminDashboard(env){ return ok({stats:await adminStats(env)}); }
+async function adminOperatorDashboard(env,auth,url){
+  const operatorId=requireString(url.searchParams.get("operatorId"),"operatorId");
+  await requireSpecificOperatorMembership(env,auth.user.id,operatorId,["operator_admin"]);
+  return ok({stats:await adminStats(env,operatorId)});
+}
+async function adminSuperadminOperators(env){
+  const r=await env.DB.prepare(`SELECT o.id,o.name,o.registration_number,o.phone,o.email,o.address,o.active,o.created_at,o.updated_at,COUNT(DISTINCT om.id) AS member_count,COUNT(DISTINCT orr.id) AS route_count FROM operators o LEFT JOIN operator_memberships om ON om.operator_id=o.id AND om.active=1 LEFT JOIN operator_routes orr ON orr.operator_id=o.id AND orr.active=1 GROUP BY o.id ORDER BY o.name`).all();
+  return ok({operators:r.results||[]});
+}
+async function adminSuperadminUsers(env,url){
+  const limit=Math.min(Math.max(Number(url.searchParams.get("limit")||500),1),1000);
+  const r=await env.DB.prepare(`SELECT id,name,role,system_role,active,phone,created_at,last_login_at,last_seen_at FROM users ORDER BY created_at DESC LIMIT ?`).bind(limit).all();
+  return ok({users:r.results||[]});
+}
+async function adminSuperadminRoutes(env){
+  const r=await env.DB.prepare(`SELECT r.id,r.origin,r.destination,r.name,r.service_mode,r.active,r.created_at,r.updated_at,COUNT(DISTINCT orr.operator_id) AS operator_count,COUNT(DISTINCT tr.taxi_id) AS taxi_count FROM routes r LEFT JOIN operator_routes orr ON orr.route_id=r.id AND orr.active=1 LEFT JOIN taxi_routes tr ON tr.route_id=r.id AND tr.active=1 GROUP BY r.id ORDER BY r.name`).all();
+  return ok({routes:r.results||[]});
+}
+async function adminOperatorUsers(env,auth,url){
+  const operatorId=requireString(url.searchParams.get("operatorId"),"operatorId");
+  await requireSpecificOperatorMembership(env,auth.user.id,operatorId,["operator_admin"]);
+  const r=await env.DB.prepare(`SELECT u.id,u.name,u.role,u.system_role,u.active,u.phone,om.membership_role,om.created_at AS membership_created_at FROM operator_memberships om JOIN users u ON u.id=om.user_id WHERE om.operator_id=? AND om.active=1 ORDER BY u.name`).bind(operatorId).all();
+  return ok({users:r.results||[]});
+}
+async function adminOperatorFleet(env,auth,url){
+  const operatorId=requireString(url.searchParams.get("operatorId"),"operatorId");
+  await requireSpecificOperatorMembership(env,auth.user.id,operatorId,["operator_admin"]);
+  const r=await env.DB.prepare(`SELECT t.id,t.vehicle_registration_number,t.capacity,t.status,t.passengers_onboard,t.active,t.driver_id,t.driver_name,t.last_updated,COUNT(DISTINCT tr.route_id) AS route_count FROM taxis t LEFT JOIN taxi_routes tr ON tr.taxi_id=t.id AND tr.active=1 WHERE t.operator_id=? GROUP BY t.id ORDER BY t.vehicle_registration_number`).bind(operatorId).all();
+  return ok({taxis:r.results||[]});
+}
+async function adminOperatorRoutes(env,auth,url){
+  const operatorId=requireString(url.searchParams.get("operatorId"),"operatorId");
+  await requireSpecificOperatorMembership(env,auth.user.id,operatorId,["operator_admin"]);
+  const r=await env.DB.prepare(`SELECT r.id,r.origin,r.destination,r.name,r.service_mode,orr.authorized_at,COUNT(DISTINCT tr.taxi_id) AS taxi_count FROM operator_routes orr JOIN routes r ON r.id=orr.route_id LEFT JOIN taxi_routes tr ON tr.route_id=r.id AND tr.active=1 AND tr.taxi_id IN (SELECT id FROM taxis WHERE operator_id=?) WHERE orr.operator_id=? AND orr.active=1 AND r.active=1 GROUP BY r.id ORDER BY r.name`).bind(operatorId,operatorId).all();
+  return ok({routes:r.results||[]});
+}
+async function adminOperatorOperations(env,auth,url){
+  const operatorId=requireString(url.searchParams.get("operatorId"),"operatorId");
+  await requireSpecificOperatorMembership(env,auth.user.id,operatorId,["operator_admin"]);
+  const s=await env.DB.prepare(`SELECT COUNT(*) AS trips,SUM(CASE WHEN tr.status IN ('LOADING','COLLECTING','FULL','DEPARTED') THEN 1 ELSE 0 END) AS activeTrips FROM trips tr JOIN taxis t ON t.id=tr.taxi_id WHERE t.operator_id=?`).bind(operatorId).first();
+  const w=await env.DB.prepare(`SELECT COUNT(*) AS count FROM route_waiting_passengers rw WHERE rw.status='WAITING' AND EXISTS(SELECT 1 FROM operator_routes orr WHERE orr.operator_id=? AND orr.route_id=rw.route_id AND orr.active=1)`).bind(operatorId).first();
+  const d=await env.DB.prepare(`SELECT COUNT(*) AS count FROM demand_signals ds WHERE ds.status='ACTIVE' AND EXISTS(SELECT 1 FROM operator_routes orr WHERE orr.operator_id=? AND orr.route_id=ds.route_id AND orr.active=1)`).bind(operatorId).first();
+  const t=await env.DB.prepare(`SELECT tr.id,r.name AS route_name,tr.status,tr.passengers_onboard,tr.capacity,tr.seats_remaining,tr.started_at,tr.last_updated,t.vehicle_registration_number,t.driver_name FROM trips tr JOIN taxis t ON t.id=tr.taxi_id JOIN routes r ON r.id=tr.route_id WHERE t.operator_id=? ORDER BY tr.started_at DESC LIMIT 500`).bind(operatorId).all();
+  return ok({stats:{trips:Number(s?.trips??0),activeTrips:Number(s?.activeTrips??0),waiting:Number(w?.count??0),demand:Number(d?.count??0)},trips:t.results||[]});
+}
+async function adminAudit(env,auth,url){
+  const operatorId=url.searchParams.get("operatorId");
+  if(operatorId && auth.user.role!=="superadmin") await requireSpecificOperatorMembership(env,auth.user.id,operatorId,["operator_admin"]);
+  if(!operatorId && auth.user.role!=="superadmin") throw new HttpError("operatorId is required for operator audit access.",400);
+  const limit=Math.min(Math.max(Number(url.searchParams.get("limit")||200),1),1000);
+  const r=await env.DB.prepare(`SELECT id,actor_user_id,operator_id,action,entity_type,entity_id,details_json,timestamp FROM audit_logs ${operatorId?"WHERE operator_id=?":""} ORDER BY timestamp DESC LIMIT ?`).bind(...(operatorId?[operatorId,limit]:[limit])).all();
+  return ok({logs:r.results||[]});
+}
+async function adminIncidents(env,auth,url){
+  const operatorId=url.searchParams.get("operatorId");
+  if(auth.user.role!=="superadmin") await requireSpecificOperatorMembership(env,auth.user.id,operatorId,["operator_admin"]);
+  const limit=Math.min(Math.max(Number(url.searchParams.get("limit")||200),1),1000);
+  const r=await env.DB.prepare(`SELECT si.*,o.name AS operator_name,r.name AS route_name,u.name AS actor_name FROM system_incidents si LEFT JOIN operators o ON o.id=si.operator_id LEFT JOIN routes r ON r.id=si.route_id LEFT JOIN users u ON u.id=si.actor_user_id ${operatorId?"WHERE si.operator_id=?":""} ORDER BY si.created_at DESC LIMIT ?`).bind(...(operatorId?[operatorId,limit]:[limit])).all();
+  return ok({incidents:r.results||[]});
+}
+async function adminSetOperatorStatus(env,auth,body){
+  const operatorId=requireString(body.operatorId,"operatorId");
+  const active=body.active?1:0;
+  const row=await env.DB.prepare("SELECT id,active FROM operators WHERE id=? LIMIT 1").bind(operatorId).first();
+  if(!row) throw new HttpError("Operator not found.",404);
+  await env.DB.prepare("UPDATE operators SET active=?,updated_at=? WHERE id=?").bind(active,now(),operatorId).run();
+  await writeAudit(env,{actorUserId:auth.user.id,action:active?"OPERATOR_ACTIVATED":"OPERATOR_DEACTIVATED",entityType:"operator",entityId:operatorId,details:{previousActive:row.active,active}});
+  return ok({operatorId,active});
+}
+async function adminProvisionOperatorUser(env,auth,body){
+  const operatorId=requireString(body.operatorId,"operatorId"),name=requireString(body.name,"name"),role=requireString(body.role,"role");
+  if(!["driver","conductor"].includes(role)) throw new HttpError("Only driver and conductor users can be provisioned by an Operator Admin.",400);
+  await requireSpecificOperatorMembership(env,auth.user.id,operatorId,["operator_admin"]);
+  const phone=normalizePhone(body.phone);
+  const duplicate=await env.DB.prepare("SELECT id FROM users WHERE lower(name)=lower(?) AND role=? AND active=1 LIMIT 1").bind(name,role).first();
+  if(duplicate) throw new HttpError("An active user with this name and role already exists.",409);
+  const timestamp=now(),userId=id(role);
+  await env.DB.batch([
+    env.DB.prepare("INSERT INTO users (id,name,role,active,phone,created_at,last_seen_at) VALUES (?,?,?,1,?,?,?)").bind(userId,name,role,phone,timestamp,timestamp),
+    env.DB.prepare("INSERT INTO operator_memberships (id,operator_id,user_id,membership_role,active,created_at,updated_at) VALUES (?,?,?,?,1,?,?)").bind(id("membership"),operatorId,userId,role,timestamp,timestamp)
+  ]);
+  await writeAudit(env,{actorUserId:auth.user.id,operatorId,action:"OPERATOR_USER_PROVISIONED",entityType:"user",entityId:userId,details:{name,role}});
+  return ok({user:{id:userId,name,role,phone,active:1}});
+}
+async function adminSetUserStatus(env,auth,body){
+  const userId=requireString(body.userId,"userId"),active=body.active?1:0;
+  const user=await env.DB.prepare("SELECT id,name,role,system_role,active FROM users WHERE id=? LIMIT 1").bind(userId).first();
+  if(!user) throw new HttpError("User not found.",404);
+  if(auth.user.role!=="superadmin"){
+    const allowed=await env.DB.prepare(`SELECT 1 FROM operator_memberships target JOIN operator_memberships admin ON admin.operator_id=target.operator_id WHERE target.user_id=? AND target.active=1 AND admin.user_id=? AND admin.membership_role='operator_admin' AND admin.active=1 LIMIT 1`).bind(userId,auth.user.id).first();
+    if(!allowed) throw new HttpError("User is outside your operator scope.",403);
+  }
+  await env.DB.prepare("UPDATE users SET active=?,last_seen_at=? WHERE id=?").bind(active,now(),userId).run();
+  if(!active) await env.DB.prepare("UPDATE operator_memberships SET active=0,updated_at=? WHERE user_id=?").bind(now(),userId).run();
+  await writeAudit(env,{actorUserId:auth.user.id,action:active?"USER_ACTIVATED":"USER_DEACTIVATED",entityType:"user",entityId:userId,details:{active}});
+  return ok({userId,active});
+}
+async function adminAcknowledgeIncident(env,auth,body){
+  const incidentId=requireString(body.incidentId,"incidentId");
+  const row=await env.DB.prepare("SELECT id,operator_id FROM system_incidents WHERE id=? LIMIT 1").bind(incidentId).first();
+  if(!row) throw new HttpError("Incident not found.",404);
+  if(auth.user.role!=="superadmin") await requireSpecificOperatorMembership(env,auth.user.id,row.operator_id,["operator_admin"]);
+  await env.DB.prepare("UPDATE system_incidents SET status='ACKNOWLEDGED',acknowledged_at=?,acknowledged_by=? WHERE id=?").bind(now(),auth.user.id,incidentId).run();
+  await writeAudit(env,{actorUserId:auth.user.id,operatorId:row.operator_id,action:"INCIDENT_ACKNOWLEDGED",entityType:"system_incident",entityId:incidentId});
+  return ok({incidentId,status:"ACKNOWLEDGED"});
+}
+async function adminResolveIncident(env,auth,body){
+  const incidentId=requireString(body.incidentId,"incidentId");
+  const row=await env.DB.prepare("SELECT id,operator_id FROM system_incidents WHERE id=? LIMIT 1").bind(incidentId).first();
+  if(!row) throw new HttpError("Incident not found.",404);
+  if(auth.user.role!=="superadmin") await requireSpecificOperatorMembership(env,auth.user.id,row.operator_id,["operator_admin"]);
+  await env.DB.prepare("UPDATE system_incidents SET status='RESOLVED',resolved_at=?,resolved_by=? WHERE id=?").bind(now(),auth.user.id,incidentId).run();
+  await writeAudit(env,{actorUserId:auth.user.id,operatorId:row.operator_id,action:"INCIDENT_RESOLVED",entityType:"system_incident",entityId:incidentId});
+  return ok({incidentId,status:"RESOLVED"});
+}
+
 async function authLogin(env, body) {
   const role = requireString(
     body.role,
