@@ -31,5 +31,27 @@
   ],
   "vars": {
     "APP_ENV": "development"
+  },
+  "env": {
+    "production": {
+      "vars": {
+        "APP_ENV": "production"
+      },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "taxiconnect",
+          "database_id": "b0f13180-40c2-4ddc-bc58-d3532f531b36"
+        }
+      ],
+      "durable_objects": {
+        "bindings": [
+          {
+            "name": "DISPATCH",
+            "class_name": "DispatchRoom"
+          }
+        ]
+      }
+    }
   }
 }
