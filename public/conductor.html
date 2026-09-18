@@ -358,6 +358,18 @@ button:not(.btn):not(.btn-link):not(.cbtn):hover{transform:translateY(-1px);box-
 @media(prefers-reduced-motion:reduce){
   *,*:before,*:after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition:none!important}
 }
+</style><style id="taxiconnect-ux-conductor">
+.tc-ops-hero{padding:24px 20px!important;color:#fff!important;background:linear-gradient(135deg,#111827,#312e81 58%,#635bff)!important;position:relative;overflow:hidden}
+.tc-ops-hero h2{color:#fff!important;font-size:25px!important;margin:5px 0!important;letter-spacing:-.03em}
+.tc-ops-hero p{color:rgba(255,255,255,.76);margin:0;line-height:1.5;font-size:13px}
+.tc-eyebrow{font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;opacity:.72}
+.tc-context{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tc-context .card{margin:0!important}
+.tc-kpi-label{font-size:11px;color:#667085;text-transform:uppercase;letter-spacing:.06em;font-weight:800}
+.tc-kpi-value{font-size:24px;font-weight:850;letter-spacing:-.03em;margin-top:3px}
+.tc-section-intro{font-size:12px;color:#667085;line-height:1.5;margin:-2px 0 12px}
+.tc-alert-strip{border-radius:14px;padding:11px 13px;background:#fffaeb;border:1px solid #fedf89;color:#93370d;font-size:12px;font-weight:700;margin-bottom:12px}
+@media(max-width:600px){.tc-ops-hero h2{font-size:22px}.tc-context{grid-template-columns:1fr 1fr}}
 </style></head>
 
 <body>
@@ -413,6 +425,7 @@ button:not(.btn):not(.btn-link):not(.cbtn):hover{transform:translateY(-1px);box-
       <div id="contextMessage" class="muted" style="margin-top:10px"></div>
     </div>
 
+    <div class="tc-alert-strip">Operational view: Operator → Route → Today. Queue membership is separate from taxi availability.</div>
     <div class="tabs">
       <button class="active" onclick="switchTab('overview', this)">Overview</button>
       <button onclick="switchTab('line', this)">Loading Line</button>
@@ -425,6 +438,7 @@ button:not(.btn):not(.btn-link):not(.cbtn):hover{transform:translateY(-1px);box-
 
       <div class="card">
         <h2>Today's Operations</h2>
+        <div class="tc-section-intro">A live snapshot of the selected route's workday.</div>
 
         <div class="grid">
           <div class="stat">
@@ -451,6 +465,7 @@ button:not(.btn):not(.btn-link):not(.cbtn):hover{transform:translateY(-1px);box-
 
       <div class="card">
         <h2>Daily Loading Line</h2>
+        <div class="tc-section-intro">Add arriving route-authorized taxis one at a time and manage their queue positions.</div>
 
         <div id="lineSummary" class="muted">
           No loading line loaded.
