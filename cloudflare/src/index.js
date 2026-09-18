@@ -5104,6 +5104,86 @@ async function handleApi(request, env) {
     );
   }
 
+  if (path === "/api/admin/superadmin/dashboard" && method === "GET") {
+    await requireRole(request, env, ["superadmin"]);
+    return await adminSuperadminDashboard(env);
+  }
+
+  if (path === "/api/admin/superadmin/operators" && method === "GET") {
+    await requireRole(request, env, ["superadmin"]);
+    return await adminSuperadminOperators(env);
+  }
+
+  if (path === "/api/admin/superadmin/routes" && method === "GET") {
+    await requireRole(request, env, ["superadmin"]);
+    return await adminSuperadminRoutes(env);
+  }
+
+  if (path === "/api/admin/superadmin/users" && method === "GET") {
+    await requireRole(request, env, ["superadmin"]);
+    return await adminSuperadminUsers(env, url);
+  }
+
+  if (path === "/api/admin/superadmin/operator/status" && method === "POST") {
+    const auth = await requireRole(request, env, ["superadmin"]);
+    return await adminSetOperatorStatus(env, auth, await readJson(request));
+  }
+
+  if (path === "/api/admin/operator/dashboard" && method === "GET") {
+    const auth = await requireRole(request, env, ["operator_admin"]);
+    return await adminOperatorDashboard(env, auth, url);
+  }
+
+  if (path === "/api/admin/operator/users" && method === "GET") {
+    const auth = await requireRole(request, env, ["operator_admin"]);
+    return await adminOperatorUsers(env, auth, url);
+  }
+
+  if (path === "/api/admin/operator/fleet" && method === "GET") {
+    const auth = await requireRole(request, env, ["operator_admin"]);
+    return await adminOperatorFleet(env, auth, url);
+  }
+
+  if (path === "/api/admin/operator/routes" && method === "GET") {
+    const auth = await requireRole(request, env, ["operator_admin"]);
+    return await adminOperatorRoutes(env, auth, url);
+  }
+
+  if (path === "/api/admin/operator/operations" && method === "GET") {
+    const auth = await requireRole(request, env, ["operator_admin"]);
+    return await adminOperatorOperations(env, auth, url);
+  }
+
+  if (path === "/api/admin/operator/user/provision" && method === "POST") {
+    const auth = await requireRole(request, env, ["operator_admin"]);
+    return await adminProvisionOperatorUser(env, auth, await readJson(request));
+  }
+
+  if (path === "/api/admin/user/status" && method === "POST") {
+    const auth = await requireRole(request, env, ["superadmin", "operator_admin"]);
+    return await adminSetUserStatus(env, auth, await readJson(request));
+  }
+
+  if (path === "/api/admin/audit" && method === "GET") {
+    const auth = await requireRole(request, env, ["superadmin", "operator_admin"]);
+    return await adminAudit(env, auth, url);
+  }
+
+  if (path === "/api/admin/incidents" && method === "GET") {
+    const auth = await requireRole(request, env, ["superadmin", "operator_admin"]);
+    return await adminIncidents(env, auth, url);
+  }
+
+  if (path === "/api/admin/incidents/acknowledge" && method === "POST") {
+    const auth = await requireRole(request, env, ["superadmin", "operator_admin"]);
+    return await adminAcknowledgeIncident(env, auth, await readJson(request));
+  }
+
+  if (path === "/api/admin/incidents/resolve" && method === "POST") {
+    const auth = await requireRole(request, env, ["superadmin", "operator_admin"]);
+    return await adminResolveIncident(env, auth, await readJson(request));
+  }
+
   if (
     path === "/api/operator/taxi/create" &&
     method === "POST"
