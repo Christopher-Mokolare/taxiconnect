@@ -52,7 +52,7 @@ jobs:
           cat /tmp/taxiconnect-worker.log
           exit 1
       - name: Role and domain E2E
-        run: bash tests/run-platform-e2e.sh
+        run: node tests/run-platform-e2e.mjs
       - name: Realtime E2E
         run: node tests/run-realtime-e2e.mjs
       - name: Existing passenger and domain regression
