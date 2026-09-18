@@ -26,11 +26,12 @@ json(){
 }
 value(){
   local key="$1"
-  python3 - "$key" <<'PY'
+  local input="$(cat)"
+  python3 - "$key" "$input" <<'PY'
 import json,sys
 key=sys.argv[1]
 try:
-    d=json.load(sys.stdin)
+    d=json.loads(sys.argv[2])
     for p in key.split('.'):
         d=d.get(p) if isinstance(d,dict) else None
     print("" if d is None else d)
