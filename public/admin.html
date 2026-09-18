@@ -1,114 +1,77 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>TaxiConnect — Administration</title>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TaxiConnect — Super Admin</title>
 <style>
-:root{font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#101828;background:#f5f7fb}
-*{box-sizing:border-box}body{margin:0}header{background:linear-gradient(135deg,#111827,#312e81,#635bff);color:#fff;padding:18px 24px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:5}header h1{margin:0;font-size:20px}main{max-width:1280px;margin:auto;padding:20px}.card{background:#fff;border:1px solid #eaecf0;border-radius:16px;padding:18px;margin-bottom:16px;box-shadow:0 8px 24px rgba(16,24,40,.06)}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}.stat{padding:16px;border:1px solid #eaecf0;border-radius:14px;background:#f8fafc}.stat b{display:block;font-size:28px;margin-top:4px}label{display:block;font-weight:700;margin:10px 0 6px}input,select,textarea,button{font:inherit;border-radius:10px;border:1px solid #d0d5dd;min-height:42px;padding:9px 11px}button{background:#111827;color:#fff;border:0;font-weight:700;cursor:pointer}button.secondary{background:#475467}button.danger{background:#b42318}button.success{background:#027a48}.actions{display:flex;gap:8px;flex-wrap:wrap}.actions button{width:auto}.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}.tabs button{background:#e4e7ec;color:#344054}.tabs button.active{background:#111827;color:#fff}.tab{display:none}.tab.active{display:block}.row{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid #eaecf0}.row:last-child{border-bottom:0}.muted{color:#667085;font-size:13px}.badge{display:inline-block;padding:4px 8px;border-radius:999px;background:#eaecf0;font-size:12px;font-weight:800}.good{background:#dcfae6;color:#067647}.warn{background:#fef0c7;color:#b54708}.bad{background:#fee4e2;color:#b42318}.hidden{display:none!important}.error{color:#b42318;white-space:pre-wrap}.ok{color:#027a48;white-space:pre-wrap}.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:10px;border-bottom:1px solid #eaecf0;vertical-align:top;font-size:13px}th{font-size:12px;color:#475467;text-transform:uppercase}.login{max-width:460px;margin:80px auto}@media(max-width:700px){main{padding:12px}.row{align-items:flex-start;flex-direction:column}}
+*{box-sizing:border-box}body{margin:0;font-family:Inter,system-ui,sans-serif;background:#f5f7fb;color:#101828}
+header{background:#111827;color:#fff;padding:16px 22px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:5}
+main{max-width:1200px;margin:auto;padding:20px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.card{background:#fff;border:1px solid #e4e7ec;border-radius:16px;padding:16px;margin-bottom:16px;box-shadow:0 8px 24px #1018280d}
+.kpi b{display:block;font-size:28px;margin-top:5px}.muted{color:#667085;font-size:13px}
+.tabs{display:flex;gap:6px;overflow:auto;margin-bottom:16px}.tabs button{border:0;padding:10px 14px;border-radius:10px;background:#e4e7ec;font-weight:700;white-space:nowrap}.tabs button.active{background:#635bff;color:#fff}
+.tab{display:none}.tab.active{display:block}table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:10px;border-bottom:1px solid #eaecf0;vertical-align:top}input,select,button{font:inherit;padding:10px;border-radius:10px;border:1px solid #d0d5dd}button{cursor:pointer;background:#111827;color:#fff;border:0;font-weight:700}.danger{background:#d92d20}.good{background:#039855}.form{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}.form button{align-self:end}.hidden{display:none!important}.login{max-width:420px;margin:80px auto}.error{color:#b42318}.pill{padding:3px 7px;border-radius:999px;background:#eef2ff;font-size:11px;font-weight:700}
 </style>
 </head>
 <body>
-<header><h1>TaxiConnect — Administration</h1><button id="logout" class="secondary hidden" onclick="logout()">Sign out</button></header>
+<header><strong>🛡 TaxiConnect — Super Admin</strong><button onclick="logout()">Sign out</button></header>
 <main>
 <section id="login" class="card login">
-<h2>Administration Login</h2>
-<label>Role</label><select id="loginRole"><option value="superadmin">Super Admin</option><option value="operator_admin">Operator Admin</option></select>
-<label>Name</label><input id="loginName" autocomplete="name">
-<label>PIN</label><input id="loginPin" type="password" inputmode="numeric" autocomplete="current-password">
-<button style="margin-top:12px;width:100%" onclick="login()">Sign in</button>
-<div id="loginError" class="error"></div>
+<h2>Platform Administration</h2><p class="muted">Platform-level control plane.</p>
+<input id="name" placeholder="Super Admin name"><input id="pin" type="password" placeholder="Super Admin PIN" style="margin-top:8px">
+<button onclick="login()" style="width:100%;margin-top:8px">Sign in</button><p id="loginError" class="error"></p>
 </section>
 <section id="app" class="hidden">
-<div class="card"><div class="grid">
-<div><span class="muted">Signed in as</span><h2 id="who" style="margin:4px 0"></h2></div>
-<div><span class="muted">Access</span><h2 id="roleLabel" style="margin:4px 0"></h2></div>
-<div id="operatorBox"><label>Operator</label><select id="operatorSelect" onchange="operatorChanged()"></select></div>
-</div></div>
-<div class="tabs" id="tabs"></div>
-<div id="content"></div>
-</section>
-</main>
+<div class="grid" id="kpis"></div>
+<div class="tabs">
+<button class="active" onclick="tab('overview',this)">Overview</button><button onclick="tab('operators',this)">Operators</button>
+<button onclick="tab('routes',this)">Routes</button><button onclick="tab('users',this)">Users</button>
+<button onclick="tab('taxis',this)">Taxis</button><button onclick="tab('trips',this)">Trips</button>
+<button onclick="tab('audit',this)">Audit</button><button onclick="tab('incidents',this)">Incidents</button>
+</div>
+<div id="overview" class="tab active"><div class="card"><h2>Platform health</h2><pre id="health"></pre></div></div>
+<div id="operators" class="tab">
+<div class="card"><h2>Create operator admin</h2><div class="form">
+<select id="adminOperator"></select><input id="adminName" placeholder="Admin full name"><input id="adminPhone" placeholder="Phone">
+<button onclick="createOperatorAdmin()">Provision admin</button></div></div>
+<div class="card"><h2>Create operator</h2><div class="form">
+<input id="opName" placeholder="Operator name"><input id="opReg" placeholder="Registration number"><input id="opPhone" placeholder="Phone"><input id="opEmail" placeholder="Email"><input id="opAddress" placeholder="Address">
+<button onclick="createOperator()">Create</button></div></div><div class="card"><div id="operatorsTable"></div></div></div>
+<div id="routes" class="tab">
+<div class="card"><h2>Create route</h2><div class="form">
+<input id="rOrigin" placeholder="Origin"><input id="rDestination" placeholder="Destination"><input id="rName" placeholder="Display name">
+<select id="rMode"><option>RANK_DEPARTURE</option><option>COLLECTION</option><option>HYBRID</option></select><button onclick="createRoute()">Create</button></div></div><div class="card"><h3>Authorize operator on route</h3><div class="form"><select id="authOperator"></select><select id="authRoute"></select><button onclick="authorizeOperatorRoute()">Authorize</button></div></div><div class="card"><div id="routesTable"></div></div></div>
+<div id="users" class="tab"><div class="card"><div id="usersTable"></div></div></div>
+<div id="taxis" class="tab"><div class="card"><div id="taxisTable"></div></div></div>
+<div id="trips" class="tab"><div class="card"><div id="tripsTable"></div></div></div>
+<div id="audit" class="tab"><div class="card"><div id="auditTable"></div></div></div>
+<div id="incidents" class="tab"><div class="card"><div id="incidentsTable"></div></div></div>
+</section></main>
 <script>
-let token=null,user=null,memberships=[],operatorId=null,tab="dashboard";
+let token=sessionStorage.getItem("tc_superadmin_token")||"";
 const $=id=>document.getElementById(id);
-function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));}
-async function api(path,opts={}){
- const headers={"Content-Type":"application/json",...(opts.headers||{})};
- if(token) headers.Authorization="Bearer "+token;
- const r=await fetch("/api"+path,{...opts,headers});
- const text=await r.text(); let d={}; try{d=JSON.parse(text)}catch{d={error:text}};
- if(!r.ok||d.ok===false) throw new Error(d.error||("HTTP "+r.status));
- return d;
-}
-async function login(){
- $("loginError").textContent="";
- try{
-  const d=await api("/auth/login",{method:"POST",body:JSON.stringify({role:$("loginRole").value,name:$("loginName").value.trim(),pin:$("loginPin").value})});
-  token=d.token;user=d.user;memberships=d.memberships||[];operatorId=memberships[0]?.operator_id||null;
-  sessionStorage.setItem("tc_admin_role",user.role);
-  $("login").classList.add("hidden");$("app").classList.remove("hidden");$("logout").classList.remove("hidden");
-  $("who").textContent=user.name;$("roleLabel").textContent=user.role;
-  if(user.role==="superadmin"){ $("operatorBox").classList.add("hidden"); tabs(["dashboard","operators","routes","users","incidents","audit"]); }
-  else { $("operatorBox").classList.remove("hidden"); renderOperatorOptions(); tabs(["dashboard","people","fleet","routes","operations","incidents","audit"]); }
-  await render();
- }catch(e){$("loginError").textContent=e.message}
-}
-function tabs(items){$("tabs").innerHTML=items.map(x=>'<button class="'+(x===tab?"active":"")+'" onclick="setTab(\''+x+'\')">'+x.replace("_"," ").replace(/\b\w/g,m=>m.toUpperCase())+"</button>").join("")}
-function setTab(x){tab=x;tabs([...$("tabs").querySelectorAll("button")].map(b=>b.textContent.toLowerCase().replace(" ","_")));render()}
-function renderOperatorOptions(){ $("operatorSelect").innerHTML=memberships.map(m=>'<option value="'+esc(m.operator_id)+'">'+esc(m.operator_name)+'</option>').join("");$("operatorSelect").value=operatorId||""}
-function operatorChanged(){operatorId=$("operatorSelect").value;render()}
-async function render(){
- try{
-  const d=await api(user.role==="superadmin"?"/admin/superadmin/dashboard":"/admin/operator/dashboard?operatorId="+encodeURIComponent(operatorId));
-  let c='<div class="grid">'+
-   '<div class="stat">Operators<b>'+Number(d.stats.operators??0)+'</b></div>'+
-   '<div class="stat">Routes<b>'+Number(d.stats.routes??0)+'</b></div>'+
-   '<div class="stat">Active taxis<b>'+Number(d.stats.activeTaxis??0)+'</b></div>'+
-   '<div class="stat">Active trips<b>'+Number(d.stats.activeTrips??0)+'</b></div>'+
-   '<div class="stat">Waiting passengers<b>'+Number(d.stats.waitingPassengers??0)+'</b></div>'+
-   '<div class="stat">Open incidents<b>'+Number(d.stats.openIncidents??0)+'</b></div></div>';
-  if(tab==="dashboard"){$("content").innerHTML='<div class="card"><h2>Platform Operations</h2><p class="muted">Control-plane overview for the selected access scope.</p>'+c+'</div>';return}
-  if(user.role==="superadmin") await renderSuperadmin();
-  else await renderOperator();
- }catch(e){$("content").innerHTML='<div class="card error">'+esc(e.message)+'</div>'}
-}
-async function renderSuperadmin(){
- if(tab==="operators"){
-  const d=await api("/admin/superadmin/operators");
-  $("content").innerHTML='<div class="card"><h2>Operators</h2><div class="grid"><input id="newOpName" placeholder="Operator name"><input id="newOpReg" placeholder="Registration number"><input id="newOpEmail" placeholder="Email"><input id="newOpPhone" placeholder="Phone"><button onclick="createOperator()">Create operator</button></div><div class="table-wrap"><table><tr><th>Name</th><th>Registration</th><th>Status</th><th>Actions</th></tr>'+d.operators.map(o=>'<tr><td>'+esc(o.name)+'</td><td>'+esc(o.registration_number||"—")+'</td><td><span class="badge '+(o.active?"good":"bad")+'">'+(o.active?"ACTIVE":"INACTIVE")+'</span></td><td><button class="secondary" onclick="toggleOperator(\''+esc(o.id)+'\','+(o.active?0:1)+')">'+(o.active?"Deactivate":"Activate")+'</button></td></tr>').join("")+'</table></div></div>';return;
- }
- if(tab==="routes"){
-  const d=await api("/admin/superadmin/routes");
-  $("content").innerHTML='<div class="card"><h2>Routes & Corridors</h2><div class="grid"><input id="rOrigin" placeholder="Origin"><input id="rDestination" placeholder="Destination"><select id="rMode"><option>RANK_DEPARTURE</option><option>COLLECTION</option><option>HYBRID</option></select><button onclick="createRoute()">Create route</button></div><div class="table-wrap"><table><tr><th>Route</th><th>Mode</th><th>Operators</th><th>Status</th></tr>'+d.routes.map(r=>'<tr><td>'+esc(r.name)+'</td><td>'+esc(r.service_mode)+'</td><td>'+Number(r.operator_count||0)+'</td><td>'+esc(r.active?"ACTIVE":"INACTIVE")+'</td></tr>').join("")+'</table></div></div>';return;
- }
- if(tab==="users"){
-  const d=await api("/admin/superadmin/users");
-  $("content").innerHTML='<div class="card"><h2>Platform Users</h2><div class="table-wrap"><table><tr><th>Name</th><th>Role</th><th>System role</th><th>Active</th></tr>'+d.users.map(u=>'<tr><td>'+esc(u.name)+'</td><td>'+esc(u.role)+'</td><td>'+esc(u.system_role||"—")+'</td><td>'+esc(u.active?"YES":"NO")+'</td></tr>').join("")+'</table></div></div>';return;
- }
- if(tab==="incidents"){await renderIncidents();return}
- if(tab==="audit"){const d=await api("/admin/audit?limit=200");$("content").innerHTML='<div class="card"><h2>Audit Log</h2>'+table(d.logs,["timestamp","action","entity_type","entity_id","operator_id","actor_user_id"])+'</div>';return}
- $("content").innerHTML='<div class="card"><h2>Super Admin</h2><p class="muted">Use the navigation to manage the platform control plane.</p></div>';
-}
-async function renderOperator(){
- if(tab==="people"){const d=await api("/admin/operator/users?operatorId="+operatorId);$("content").innerHTML='<div class="card"><h2>Operator People</h2><div class="grid"><input id="newUserName" placeholder="Driver or conductor name"><input id="newUserPhone" placeholder="Phone"><select id="newUserRole"><option value="driver">Driver</option><option value="conductor">Conductor</option></select><button onclick="provisionUser()">Provision user</button></div>'+table(d.users,["name","role","membership_role","phone","active"])+'</div>';return}
- if(tab==="fleet"){const d=await api("/admin/operator/fleet?operatorId="+operatorId);$("content").innerHTML='<div class="card"><h2>Fleet</h2><div class="grid"><input id="newTaxiReg" placeholder="Vehicle registration"><input id="newTaxiCapacity" type="number" min="1" max="22" value="15" placeholder="Capacity"><button onclick="createTaxi()">Register taxi</button></div>'+table(d.taxis,["vehicle_registration_number","capacity","status","driver_name","active","route_count"])+'</div>';return}
- if(tab==="routes"){const d=await api("/admin/operator/routes?operatorId="+operatorId);$("content").innerHTML='<div class="card"><h2>Authorized Routes</h2>'+table(d.routes,["name","service_mode","authorized_at","taxi_count"])+'</div>';return}
- if(tab==="operations"){const d=await api("/admin/operator/operations?operatorId="+operatorId);$("content").innerHTML='<div class="card"><h2>Operations</h2><div class="grid"><div class="stat">Trips<b>'+d.stats.trips+'</b></div><div class="stat">Active trips<b>'+d.stats.activeTrips+'</b></div><div class="stat">Waiting<b>'+d.stats.waiting+'</b></div><div class="stat">Demand<b>'+d.stats.demand+'</b></div></div>'+table(d.trips,["route_name","vehicle_registration_number","driver_name","status","passengers_onboard","started_at"])+'</div>';return}
- if(tab==="incidents"){await renderIncidents();return}
- if(tab==="audit"){const d=await api("/admin/audit?operatorId="+operatorId+"&limit=200");$("content").innerHTML='<div class="card"><h2>Operator Audit</h2>'+table(d.logs,["timestamp","action","entity_type","entity_id","actor_user_id"])+'</div>';return}
- $("content").innerHTML='<div class="card"><h2>Operator Admin</h2><p class="muted">Select a control-plane section.</p></div>';
-}
-function table(rows,cols){return '<div class="table-wrap"><table><tr>'+cols.map(c=>'<th>'+esc(c)+'</th>').join("")+'</tr>'+rows.map(r=>'<tr>'+cols.map(c=>'<td>'+esc(r[c]??"—")+'</td>').join("")+'</tr>').join("")+'</table></div>'}
-async function provisionUser(){await api("/admin/operator/user/provision",{method:"POST",body:JSON.stringify({operatorId,name:$("newUserName").value,phone:$("newUserPhone").value,role:$("newUserRole").value})});render()}
-async function createTaxi(){await api("/operator/taxi/create",{method:"POST",body:JSON.stringify({operatorId,vehicleRegistrationNumber:$("newTaxiReg").value,capacity:Number($("newTaxiCapacity").value)})});render()}
-async function createOperator(){await api("/superadmin/operator/create",{method:"POST",body:JSON.stringify({name:$("newOpName").value,registrationNumber:$("newOpReg").value,email:$("newOpEmail").value,phone:$("newOpPhone").value})});render()}
-async function toggleOperator(id,active){await api("/admin/superadmin/operator/status",{method:"POST",body:JSON.stringify({operatorId:id,active:!!active})});render()}
-async function createRoute(){await api("/superadmin/route/create",{method:"POST",body:JSON.stringify({origin:$("rOrigin").value,destination:$("rDestination").value,serviceMode:$("rMode").value})});render()}
-async function renderIncidents(){const d=await api("/admin/incidents?operatorId="+(user.role==="superadmin"?"":operatorId));$("content").innerHTML='<div class="card"><h2>System Incidents</h2>'+table(d.incidents,["severity","status","source","message","operator_id","route_id","created_at"])+'</div>'}
-async function logout(){token=null;sessionStorage.clear();location.reload()}
-$("loginRole").addEventListener("change",()=>{$("operatorBox")?.classList.toggle("hidden",$("loginRole").value==="superadmin")});
+async function api(path,opt={}){const h={"Content-Type":"application/json",...(opt.headers||{})};if(token)h.Authorization="Bearer "+token;const r=await fetch("/api"+path,{...opt,headers:h});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||"Request failed");return d}
+async function login(){try{const d=await api("/auth/login",{method:"POST",body:JSON.stringify({role:"superadmin",name:$("name").value,pin:$("pin").value})});token=d.token;sessionStorage.setItem("tc_superadmin_token",token);$("login").classList.add("hidden");$("app").classList.remove("hidden");await loadAll()}catch(e){$("loginError").textContent=e.message}}
+function logout(){token="";sessionStorage.removeItem("tc_superadmin_token");location.reload()}
+function tab(id,b){document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));$(id).classList.add("active");document.querySelectorAll(".tabs button").forEach(x=>x.classList.remove("active"));b.classList.add("active")}
+const esc=v=>String(v??"").replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
+async function loadAll(){const [d,h,o,r,u,t,tr,a,i]=await Promise.all([api("/superadmin/dashboard"),api("/superadmin/health"),api("/superadmin/operators"),api("/superadmin/routes"),api("/superadmin/users"),api("/superadmin/taxis"),api("/superadmin/trips"),api("/superadmin/audit"),api("/superadmin/incidents")]);$("kpis").innerHTML=Object.entries(d.dashboard).map(([k,v])=>'<div class="card kpi"><span class="muted">'+esc(k)+'</span><b>'+esc(v)+'</b></div>').join("");$("health").textContent=JSON.stringify(h,null,2);renderOperators(o.operators);renderRoutes(r.routes);
+$("adminOperator").innerHTML=o.operators.filter(x=>x.active).map(x=>'<option value="'+x.id+'">'+esc(x.name)+'</option>').join("");
+$("authOperator").innerHTML=o.operators.filter(x=>x.active).map(x=>'<option value="'+x.id+'">'+esc(x.name)+'</option>').join("");
+$("authRoute").innerHTML=r.routes.filter(x=>x.active).map(x=>'<option value="'+x.id+'">'+esc(x.name)+'</option>').join("");renderUsers(u.users);renderTaxis(t.taxis);renderTrips(tr.trips);renderAudit(a.audit);renderIncidents(i.incidents)}
+function renderOperators(x){$("operatorsTable").innerHTML="<h3>Operators</h3><table><tr><th>Name</th><th>Registration</th><th>Members</th><th>Taxis</th><th>Routes</th><th>Status</th><th></th></tr>"+x.map(o=>'<tr><td>'+esc(o.name)+'</td><td>'+esc(o.registration_number)+'</td><td>'+o.member_count+'</td><td>'+o.taxi_count+'</td><td>'+o.route_count+'</td><td>'+esc(o.active?"ACTIVE":"INACTIVE")+'</td><td><button class="'+(o.active?"danger":"good")+'" onclick="operatorStatus(\''+o.id+'\','+(o.active?0:1)+')">'+(o.active?"Deactivate":"Activate")+'</button></td></tr>').join("")+"</table>"}
+function renderRoutes(x){$("routesTable").innerHTML="<h3>Routes</h3><table><tr><th>Route</th><th>Mode</th><th>Operators</th><th>Taxis</th><th>Status</th><th></th></tr>"+x.map(r=>'<tr><td>'+esc(r.name)+'</td><td><span class="pill">'+esc(r.service_mode)+'</span></td><td>'+r.operator_count+'</td><td>'+r.authorized_taxi_count+'</td><td>'+esc(r.active?"ACTIVE":"INACTIVE")+'</td><td><button class="'+(r.active?"danger":"good")+'" onclick="routeStatus(\''+r.id+'\','+(r.active?0:1)+')">'+(r.active?"Deactivate":"Activate")+'</button></td></tr>').join("")+"</table>"}
+function renderUsers(x){$("usersTable").innerHTML="<h3>Users</h3><table><tr><th>Name</th><th>Role</th><th>Phone</th><th>Operators</th><th>Status</th><th>Last login</th></tr>"+x.map(u=>'<tr><td>'+esc(u.name)+'</td><td>'+esc(u.system_role||u.role)+'</td><td>'+esc(u.phone)+'</td><td>'+esc(u.operators)+'</td><td>'+esc(u.active?"ACTIVE":"INACTIVE")+'</td><td>'+esc(u.last_login_at)+'</td></tr>').join("")+"</table>"}
+function renderTaxis(x){$("taxisTable").innerHTML="<h3>Fleet</h3><table><tr><th>Registration</th><th>Operator</th><th>Driver</th><th>Status</th><th>Capacity</th><th>Routes</th></tr>"+x.map(t=>'<tr><td>'+esc(t.vehicle_registration_number)+'</td><td>'+esc(t.operator_name)+'</td><td>'+esc(t.driver_name)+'</td><td>'+esc(t.status)+'</td><td>'+t.capacity+'</td><td>'+t.authorized_route_count+'</td></tr>').join("")+"</table>"}
+function renderTrips(x){$("tripsTable").innerHTML="<h3>Recent trips</h3><table><tr><th>Route</th><th>Operator</th><th>Taxi</th><th>Driver</th><th>Status</th><th>Passengers</th></tr>"+x.map(t=>'<tr><td>'+esc(t.route_id)+'</td><td>'+esc(t.operator_name)+'</td><td>'+esc(t.vehicle_registration_number)+'</td><td>'+esc(t.driver_account_name)+'</td><td>'+esc(t.status)+'</td><td>'+esc(t.passengers_onboard)+'</td></tr>').join("")+"</table>"}
+function renderAudit(x){$("auditTable").innerHTML="<h3>Audit log</h3><table><tr><th>Time</th><th>Actor</th><th>Action</th><th>Entity</th><th>Operator</th><th>Details</th></tr>"+x.map(a=>'<tr><td>'+esc(new Date(Number(a.timestamp)).toISOString())+'</td><td>'+esc(a.actor_name)+'</td><td>'+esc(a.action)+'</td><td>'+esc(a.entity_type)+' '+esc(a.entity_id)+'</td><td>'+esc(a.operator_name)+'</td><td>'+esc(a.details_json)+'</td></tr>').join("")+"</table>"}
+function renderIncidents(x){$("incidentsTable").innerHTML="<h3>System incidents</h3><table><tr><th>Time</th><th>Severity</th><th>Source</th><th>Message</th><th>Status</th><th></th></tr>"+x.map(i=>'<tr><td>'+esc(new Date(Number(i.created_at)).toISOString())+'</td><td>'+esc(i.severity)+'</td><td>'+esc(i.source)+'</td><td>'+esc(i.message)+'</td><td>'+esc(i.status)+'</td><td>'+(i.status!=="RESOLVED"?'<button onclick="incidentStatus(\''+i.id+'\',\'RESOLVED\')">Resolve</button>':"")+'</td></tr>').join("")+"</table>"}
+async function createOperatorAdmin(){await api("/superadmin/operator-admin/create",{method:"POST",body:JSON.stringify({operatorId:$("adminOperator").value,name:$("adminName").value,phone:$("adminPhone").value})});await loadAll()}
+async function authorizeOperatorRoute(){await api("/superadmin/operator/authorize-route",{method:"POST",body:JSON.stringify({operatorId:$("authOperator").value,routeId:$("authRoute").value})});await loadAll()}
+async function createOperator(){await api("/superadmin/operator/create",{method:"POST",body:JSON.stringify({name:$("opName").value,registrationNumber:$("opReg").value,phone:$("opPhone").value,email:$("opEmail").value,address:$("opAddress").value})});await loadAll()}
+async function createRoute(){await api("/superadmin/route/create",{method:"POST",body:JSON.stringify({origin:$("rOrigin").value,destination:$("rDestination").value,name:$("rName").value,serviceMode:$("rMode").value})});await loadAll()}
+async function operatorStatus(id,active){await api("/superadmin/operator/status",{method:"POST",body:JSON.stringify({operatorId:id,active:!!active})});await loadAll()}
+async function routeStatus(id,active){await api("/superadmin/route/status",{method:"POST",body:JSON.stringify({routeId:id,active:!!active})});await loadAll()}
+async function incidentStatus(id,status){await api("/superadmin/incident/status",{method:"POST",body:JSON.stringify({incidentId:id,status})});await loadAll()}
 </script>
-</body>
-</html>
+</body></html>
