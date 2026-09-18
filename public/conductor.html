@@ -1,336 +1,1405 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TaxiConnect — Conductor</title>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"
-        integrity="sha384-sEVIly94UBRLKWdkYoPpSG7GD/e79YHMrxVyZaOk712Ga7+EAw6w1EFi+xBzBdd+"
-        crossorigin="anonymous"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"
-        integrity="sha384-EkqK+ezBWJuvO3hfrSx2iVqr3YQbhmnzn8kPhOpBZ+0GMVU5oGSgptwIu8D84HjE"
-        crossorigin="anonymous"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"
-        integrity="sha384-1/m+A1jVWbD3yiK3/vtFvm1+LjK1WLpSoDY+Kaxppwn/yP9BVSgdHTNQVOjrzUO5"
-        crossorigin="anonymous"></script>
-<script src="/firebase-config.js"></script>
-<style>
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:-apple-system,sans-serif;background:#f0f2f5;min-height:100vh}
-  header{background:#1a1a2e;color:#fff;padding:14px 16px;display:flex;justify-content:space-between;align-items:center}
-  header h1{font-size:16px}
-  .btn-link{background:none;border:1px solid rgba(255,255,255,.3);color:#fff;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:12px}
-  .screen{display:none;padding:12px;max-width:480px;margin:0 auto}
-  .screen.active{display:block}
-  .card{background:#fff;border-radius:12px;padding:14px;margin-bottom:10px;box-shadow:0 1px 4px rgba(0,0,0,.08)}
-  .card h3{font-size:12px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px}
-  .btn{display:block;width:100%;padding:13px;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;margin-top:8px}
-  .btn-primary{background:#e94560;color:#fff}
-  .btn-green{background:#28a745;color:#fff}
-  .btn-grey{background:#6c757d;color:#fff}
-  input[type=tel],input[type=text]{width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:14px;margin-top:6px}
-  .otp-input{letter-spacing:8px;font-size:20px;text-align:center}
-  .tabs{display:flex;background:#fff;border-bottom:1px solid #eee}
-  .tab{flex:1;padding:11px;text-align:center;font-size:12px;font-weight:600;color:#888;cursor:pointer;border-bottom:3px solid transparent}
-  .tab.active{color:#e94560;border-bottom-color:#e94560}
-  .tab-panel{display:none;padding:12px;max-width:480px;margin:0 auto}
-  .tab-panel.active{display:block}
-  .route-section{margin-bottom:12px}
-  .route-section h4{font-size:11px;font-weight:700;color:#e94560;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid #e94560;padding-bottom:5px;margin-bottom:8px}
-  .taxi-row{padding:8px 0;border-bottom:1px solid #f5f5f5}
-  .taxi-row:last-child{border-bottom:none}
-  .row-header{display:flex;justify-content:space-between;align-items:center}
-  .badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600}
-  .b-needs{background:#fff3cd;color:#856404}
-  .b-full{background:#d4edda;color:#155724}
-  .b-breakdown{background:#f8d7da;color:#721c24}
-  .b-blue{background:#cce5ff;color:#004085}
-  .meta{font-size:11px;color:#888;margin-top:3px}
-  .action-row{display:flex;gap:5px;margin-top:6px}
-  .action-row button{flex:1;padding:5px;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer}
-  .alert{padding:10px 12px;border-radius:8px;font-size:13px;margin-bottom:10px;border-left:4px solid}
-  .a-warn{background:#fff3cd;border-color:#ffc107}
-  .a-danger{background:#f8d7da;border-color:#dc3545}
-  .a-success{background:#d4edda;border-color:#28a745}
-  .empty{color:#aaa;font-size:13px;text-align:center;padding:14px 0}
-  .demand-row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid #f5f5f5;font-size:13px}
-  .demand-row:last-child{border-bottom:none}
-  #recaptcha-container{margin-top:10px}
-  .spinner{display:inline-block;width:14px;height:14px;border:2px solid #ddd;border-top-color:#e94560;border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle}
-  @keyframes spin{to{transform:rotate(360deg)}}
-  .role-row{display:flex;gap:8px;margin-top:8px}
-  .role-btn{flex:1;padding:9px;border:2px solid #ddd;border-radius:8px;background:#fff;font-size:12px;font-weight:600;cursor:pointer;text-align:center}
-  .role-btn.sel{border-color:#e94560;background:#fff0f3;color:#e94560}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>TaxiConnect — Conductor</title>
+
+  <!-- Firebase retained temporarily for rollback compatibility only. -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"
+          integrity="sha384-sEVIly94UBRLKWdkYoPpSG7GD/e79YHMrxVyZaOk712Ga7+EAw6w1EFi+xBzBdd+"
+          crossorigin="anonymous"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"
+          integrity="sha384-EkqK+ezBWJuvO3hfrSx2iVqr3YQbhmnzn8kPhOpBZ+0GMVU5oGSgptwIu8D84HjE"
+          crossorigin="anonymous"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"
+          integrity="sha384-1/m+A1jVWbD3yiK3/vtFvm1+LjK1WLpSoDY+Kaxppwn/yP9BVSgdHTNQVOjrzUO5"
+          crossorigin="anonymous"></script>
+  <script src="/firebase-config.js"></script>
+
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f4f6f8;
+      color: #17202a;
+    }
+
+    header {
+      background: #111827;
+      color: white;
+      padding: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 18px;
+    }
+
+    main {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.08);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+    }
+
+    .stat {
+      padding: 14px;
+      border-radius: 10px;
+      background: #f1f5f9;
+    }
+
+    .stat strong {
+      display: block;
+      font-size: 24px;
+      margin-top: 4px;
+    }
+
+    label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    input,
+    select,
+    button {
+      width: 100%;
+      min-height: 42px;
+      border-radius: 8px;
+      border: 1px solid #cbd5e1;
+      padding: 9px 11px;
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+      background: #111827;
+      color: white;
+      border: none;
+      font-weight: 600;
+    }
+
+    button.secondary {
+      background: #475569;
+    }
+
+    button.danger {
+      background: #b91c1c;
+    }
+
+    button.warning {
+      background: #b45309;
+    }
+
+    button.success {
+      background: #047857;
+    }
+
+    button:disabled {
+      opacity: .55;
+      cursor: not-allowed;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .actions button {
+      width: auto;
+      min-width: 110px;
+    }
+
+    .tabs {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+      margin-bottom: 16px;
+    }
+
+    .tabs button {
+      background: #e2e8f0;
+      color: #17202a;
+    }
+
+    .tabs button.active {
+      background: #111827;
+      color: white;
+    }
+
+    .tab {
+      display: none;
+    }
+
+    .tab.active {
+      display: block;
+    }
+
+    .row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .row:last-child {
+      border-bottom: 0;
+    }
+
+    .muted {
+      color: #64748b;
+      font-size: 13px;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: #e2e8f0;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .badge.good {
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .badge.warn {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    .badge.bad {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .error {
+      color: #b91c1c;
+      margin-top: 10px;
+      white-space: pre-wrap;
+    }
+
+    .success-message {
+      color: #047857;
+      margin-top: 10px;
+      white-space: pre-wrap;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .login {
+      max-width: 420px;
+      margin: 70px auto;
+    }
+
+    .line-position {
+      width: 34px;
+      height: 34px;
+      min-height: 34px;
+      padding: 0;
+      border-radius: 50%;
+      background: #e2e8f0;
+      color: #111827;
+      flex: 0 0 auto;
+    }
+
+    .taxi-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .taxi-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+    }
+
+    .taxi-actions button {
+      width: auto;
+      min-height: 34px;
+      padding: 6px 9px;
+      font-size: 12px;
+    }
+
+    @media (max-width: 600px) {
+      .tabs {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .row {
+        align-items: flex-start;
+      }
+    }
+  </style>
 </head>
+
 <body>
+
 <header>
   <h1>🎛 TaxiConnect — Conductor</h1>
-  <button class="btn-link" id="signOutBtn" onclick="signOut()" style="display:none">Sign Out</button>
+  <button id="signOutBtn"
+          class="secondary"
+          style="display:none;width:auto"
+          onclick="signOut()">Sign out</button>
 </header>
 
-<!-- AUTH -->
-<div id="authScreen" class="screen active">
-  <div class="card" style="margin-top:20px">
-    <h3>Conductor PIN</h3>
-    <p style="font-size:13px;color:#666;margin-bottom:4px">Enter the conductor PIN to access the dashboard.</p>
-    <input type="password" id="pinInput" placeholder="Enter PIN" maxlength="20" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:18px;letter-spacing:4px;text-align:center;margin-top:6px" />
-    <button class="btn btn-primary" onclick="pinLogin()">Enter Dashboard</button>
-  </div>
-  <div id="authError" class="alert a-danger" style="display:none;margin-top:10px"></div>
-</div>
+<main>
 
-<!-- APP -->
-<div id="appScreen" class="screen">
-  <div class="tabs">
-    <div class="tab active" onclick="switchTab('overview')">📊 Overview</div>
-    <div class="tab" onclick="switchTab('taxis')">🚕 Taxis</div>
-    <div class="tab" onclick="switchTab('waiting')">👥 Waiting</div>
-    <div class="tab" onclick="switchTab('manage')">⚙️ Manage</div>
-  </div>
+  <!-- LOGIN -->
+  <section id="loginScreen" class="login card">
+    <h2>Conductor Login</h2>
 
-  <div id="tab-overview" class="tab-panel active">
-    <div id="demandAlert" style="display:none;margin-top:10px"></div>
-    <div class="card" style="margin-top:10px">
-      <h3>Live Demand</h3>
-      <div id="demandOverview"><span class="spinner"></span></div>
-    </div>
+    <label for="nameInput">Name</label>
+    <input id="nameInput"
+           value="Conductor"
+           autocomplete="name">
+
+    <label for="pinInput" style="margin-top:12px">PIN</label>
+    <input id="pinInput"
+           type="password"
+           inputmode="numeric"
+           autocomplete="current-password">
+
+    <button onclick="pinLogin()" style="margin-top:12px">
+      Sign in
+    </button>
+
+    <div id="authError" class="error"></div>
+  </section>
+
+  <!-- APP -->
+  <section id="appScreen" class="hidden">
+
     <div class="card">
-      <h3>Notify Drivers</h3>
-      <p style="font-size:12px;color:#666;margin-bottom:8px">Send a browser notification to drivers who have the app open.</p>
-      <div style="display:flex;gap:8px">
-        <button class="btn btn-primary" style="margin-top:0" onclick="notifyRoute('SUN_CITY')">🏘 Alert Sun City Drivers</button>
-        <button class="btn btn-primary" style="margin-top:0;background:#007bff" onclick="notifyRoute('RUSTENBURG')">🏙 Alert Rustenburg Drivers</button>
+      <div class="grid">
+        <div>
+          <label for="operatorSelect">Operator</label>
+          <select id="operatorSelect" onchange="operatorChanged()"></select>
+        </div>
+
+        <div>
+          <label for="routeSelect">Route</label>
+          <select id="routeSelect" onchange="routeChanged()"></select>
+        </div>
       </div>
-    </div>
-  </div>
 
-  <div id="tab-taxis" class="tab-panel">
-    <div class="card" style="margin-top:10px">
-      <h3>Live Taxis</h3>
-      <div id="taxiList"><span class="spinner"></span></div>
+      <div id="contextMessage" class="muted" style="margin-top:10px"></div>
     </div>
-  </div>
 
-  <div id="tab-waiting" class="tab-panel">
-    <div class="card" style="margin-top:10px">
-      <h3>Waiting Passengers</h3>
-      <div id="waitingList"><span class="spinner"></span></div>
+    <div class="tabs">
+      <button class="active" onclick="switchTab('overview', this)">Overview</button>
+      <button onclick="switchTab('line', this)">Loading Line</button>
+      <button onclick="switchTab('taxis', this)">Taxis</button>
+      <button onclick="switchTab('demand', this)">Demand</button>
     </div>
-    <div class="card">
-      <h3>Cleanup</h3>
-      <p style="font-size:12px;color:#666;margin-bottom:4px">Remove waiting signals older than 2 hours.</p>
-      <button class="btn btn-grey" onclick="cleanupStale()">🧹 Remove Stale Signals</button>
-    </div>
-  </div>
 
-  <div id="tab-manage" class="tab-panel">
-    <div class="card" style="margin-top:10px">
-      <h3>Clear Test Data</h3>
-      <p style="font-size:12px;color:#666;margin-bottom:4px">Wipe all taxis, waiting signals and summons from the database.</p>
-      <button class="btn" style="background:#dc3545;color:#fff" onclick="clearAllData()">🗑 Clear All Data</button>
-    </div>
-    <div class="card">
-      <h3>Register Driver / Conductor</h3>
-      <p style="font-size:12px;color:#666;margin-bottom:4px">Pre-approve a phone number before they sign in.</p>
-      <input type="tel" id="regPhone" placeholder="+27 82 123 4567" />
-      <div class="role-row">
-        <button class="role-btn sel" id="role-driver" onclick="selectRole('driver')">🚗 Driver</button>
-        <button class="role-btn" id="role-conductor" onclick="selectRole('conductor')">🎛 Conductor</button>
-        <button class="role-btn" id="role-passenger" onclick="selectRole('passenger')">👤 Passenger</button>
+    <!-- OVERVIEW -->
+    <section id="tab-overview" class="tab active">
+
+      <div class="card">
+        <h2>Today's Operations</h2>
+
+        <div class="grid">
+          <div class="stat">
+            Active taxis
+            <strong id="statTaxis">0</strong>
+          </div>
+
+          <div class="stat">
+            Active trips
+            <strong id="statTrips">0</strong>
+          </div>
+
+          <div class="stat">
+            Waiting passengers
+            <strong id="statWaiting">0</strong>
+          </div>
+
+          <div class="stat">
+            Active demand
+            <strong id="statDemand">0</strong>
+          </div>
+        </div>
       </div>
-      <button class="btn btn-green" onclick="registerPhone()">✅ Register</button>
-      <div id="regMsg" style="margin-top:8px;font-size:13px"></div>
-    </div>
-  </div>
-</div>
+
+      <div class="card">
+        <h2>Daily Loading Line</h2>
+
+        <div id="lineSummary" class="muted">
+          No loading line loaded.
+        </div>
+
+        <div class="actions" style="margin-top:12px">
+          <button class="success" onclick="openLine()">
+            Open / Load Line
+          </button>
+          <button class="secondary" onclick="refreshAll()">
+            Refresh
+          </button>
+        </div>
+
+        <div id="lineMessage"></div>
+      </div>
+
+      <div class="card">
+        <h2>Summon Drivers</h2>
+
+        <label for="summonCount">Passengers required</label>
+        <input id="summonCount"
+               type="number"
+               min="1"
+               max="100"
+               value="1">
+
+        <div class="actions" style="margin-top:10px">
+          <button class="warning" onclick="summonRoute()">
+            Summon Route
+          </button>
+        </div>
+
+        <div id="summonMessage"></div>
+      </div>
+
+    </section>
+
+    <!-- LINE -->
+    <section id="tab-line" class="tab">
+
+      <div class="card">
+        <h2>Loading Line</h2>
+
+        <div id="lineDetail" class="muted">
+          No line selected.
+        </div>
+
+        <div class="grid" style="margin-top:12px">
+          <div>
+            <label for="addTaxiSelect">Add taxi</label>
+            <select id="addTaxiSelect"></select>
+          </div>
+
+          <div style="display:flex;align-items:end">
+            <button class="success" onclick="addTaxiToLine()">
+              Add Taxi
+            </button>
+          </div>
+        </div>
+
+        <div id="lineEntries" style="margin-top:14px"></div>
+
+        <div id="lineMessage2"></div>
+      </div>
+
+    </section>
+
+    <!-- TAXIS -->
+    <section id="tab-taxis" class="tab">
+
+      <div class="card">
+        <h2>Operator Taxis</h2>
+
+        <div id="taxiList">
+          <div class="muted">Loading taxis...</div>
+        </div>
+
+        <div id="taxiMessage"></div>
+      </div>
+
+    </section>
+
+    <!-- DEMAND -->
+    <section id="tab-demand" class="tab">
+
+      <div class="card">
+        <h2>Passenger Demand</h2>
+
+        <div id="demandSummary">
+          <div class="muted">Loading demand...</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Waiting Passengers</h2>
+
+        <div id="waitingList">
+          <div class="muted">Loading waiting passengers...</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Demand Signals</h2>
+
+        <div id="signalList">
+          <div class="muted">Loading demand signals...</div>
+        </div>
+      </div>
+
+    </section>
+
+  </section>
+</main>
 
 <script>
-firebase.initializeApp(FIREBASE_CONFIG);
-const db = firebase.database();
-let allTaxis = {}, allWaiting = {};
-let regRole = 'driver';
+"use strict";
 
-// ── Auth ──────────────────────────────────────────────────────────
-const CONDUCTOR_PIN = 'conductor2024';
+const API_BASE = "/api";
 
-firebase.auth().signInAnonymously().catch(() => {});
+let currentUser = null;
+let sessionToken = null;
+let memberships = [];
+let routes = [];
+let selectedOperatorId = null;
+let selectedRouteId = null;
+let currentLine = null;
+let currentTaxis = [];
+let currentDemand = {
+  waiting: [],
+  demandSignals: []
+};
 
-function pinLogin() {
-  const pin = document.getElementById('pinInput').value.trim();
-  if (pin !== CONDUCTOR_PIN) { showErr('Incorrect PIN. Try again.'); return; }
-  sessionStorage.setItem('tc_role', 'conductor');
-  document.getElementById('signOutBtn').style.display = 'block';
-  show('appScreen');
-  subscribe();
-  requestNotificationPermission();
+function $(id) {
+  return document.getElementById(id);
 }
 
-function signOut() {
-  sessionStorage.removeItem('tc_role');
-  document.getElementById('signOutBtn').style.display = 'none';
-  show('authScreen');
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
-function showErr(m) { const e = document.getElementById('authError'); e.textContent = m; e.style.display = 'block'; }
+async function api(path, options = {}) {
+  const {
+    headers: optionHeaders = {},
+    ...requestOptions
+  } = options;
 
-// Auto-login if PIN session still active
-if (sessionStorage.getItem('tc_role') === 'conductor') {
-  firebase.auth().signInAnonymously().then(() => {
-    document.getElementById('signOutBtn').style.display = 'block';
-    show('appScreen');
-    subscribe();
-    requestNotificationPermission();
+  const headers = {
+    "Content-Type": "application/json",
+    ...optionHeaders
+  };
+
+  if (sessionToken) {
+    headers.Authorization = `Bearer ${sessionToken}`;
+  }
+
+  const response = await fetch(API_BASE + path, {
+    ...requestOptions,
+    credentials: "same-origin",
+    headers
   });
+
+  let data = null;
+
+  try {
+    data = await response.json();
+  } catch {
+    data = null;
+  }
+
+  if (!response.ok) {
+    throw new Error(
+      data?.error ||
+      data?.message ||
+      `Request failed (${response.status})`
+    );
+  }
+
+  return data;
 }
 
-// ── Data ──────────────────────────────────────────────────────────
-function subscribe() {
-  db.ref('taxis').on('value', s => { allTaxis = s.val() || {}; renderAll(); });
-  db.ref('waitingPassengers').on('value', s => { allWaiting = s.val() || {}; renderAll(); });
+function showMessage(id, message, type = "error") {
+  const el = $(id);
+
+  if (!el) return;
+
+  el.className =
+    type === "success"
+      ? "success-message"
+      : type === "muted"
+        ? "muted"
+        : "error";
+
+  el.textContent = message || "";
 }
 
-function renderAll() {
-  renderDemand(); renderTaxis(); renderWaiting(); renderAlert();
-}
+async function pinLogin() {
+  const name = $("nameInput").value.trim() || "Conductor";
+  const pin = $("pinInput").value.trim();
 
-function renderDemand() {
-  const stats = { SUN_CITY: { taxis:0, waiting:0, seats:0 }, RUSTENBURG: { taxis:0, waiting:0, seats:0 } };
-  Object.values(allTaxis).forEach(t => {
-    if (!stats[t.route]) return;
-    stats[t.route].taxis++;
-    stats[t.route].seats += Math.max(0, (t.capacity||14) - (t.passengersOnboard||0));
-  });
-  Object.values(allWaiting).forEach(w => { if (stats[w.route]) stats[w.route].waiting += (w.groupSize||1); });
-  document.getElementById('demandOverview').innerHTML = Object.entries(stats).map(([r,v]) => `
-    <div class="demand-row">
-      <span style="font-weight:600">${routeLabel(r)}</span>
-      <span>
-        <span class="badge b-blue">🚕 ${v.taxis}</span>
-        <span class="badge b-needs" style="margin-left:4px">👥 ${v.waiting}</span>
-        ${v.taxis ? `<span class="badge" style="margin-left:4px;background:#e2e3e5;color:#383d41">🪑 ${v.seats}</span>` : ''}
-      </span>
-    </div>`).join('');
-}
+  showMessage("authError", "");
 
-function renderTaxis() {
-  const el = document.getElementById('taxiList');
-  const entries = Object.entries(allTaxis);
-  if (!entries.length) { el.innerHTML = '<div class="empty">No active taxis.</div>'; return; }
-  el.innerHTML = ['SUN_CITY','RUSTENBURG'].map(route => {
-    const taxis = entries.filter(([,t]) => t.route === route);
-    const rows = taxis.length ? taxis.map(([id,t]) => {
-      const needed = (t.capacity||14) - (t.passengersOnboard||0);
-      const badge = t.status === 'breakdown' ? `<span class="badge b-breakdown">⚠️ Breakdown</span>`
-        : needed <= 0 ? `<span class="badge b-full">✅ Full</span>`
-        : `<span class="badge b-needs">Needs ${needed}</span>`;
-      return `<div class="taxi-row">
-        <div class="row-header"><strong style="font-size:13px">${t.driverName}</strong>${badge}</div>
-        <div class="meta">${t.passengersOnboard||0}/${t.capacity||14} onboard · ${timeAgo(t.lastUpdated)}</div>
-        <div class="action-row">
-          <button onclick="setStatus('${id}','departed')" style="background:#007bff;color:#fff">🚗 Depart</button>
-          <button onclick="setStatus('${id}','breakdown')" style="background:#dc3545;color:#fff">⚠️ Breakdown</button>
-          <button onclick="removeTaxi('${id}')" style="background:#6c757d;color:#fff">🗑 Remove</button>
-        </div>
-      </div>`;
-    }).join('') : '<div class="empty">No taxis.</div>';
-    return `<div class="route-section"><h4>${routeLabel(route)}</h4>${rows}</div>`;
-  }).join('');
-}
+  if (!pin) {
+    showMessage("authError", "Enter your PIN.");
+    return;
+  }
 
-function renderWaiting() {
-  const el = document.getElementById('waitingList');
-  const entries = Object.entries(allWaiting);
-  if (!entries.length) { el.innerHTML = '<div class="empty">No passengers waiting.</div>'; return; }
-  el.innerHTML = entries.map(([id,w]) => `
-    <div class="taxi-row">
-      <div class="row-header">
-        <span style="font-size:13px;font-weight:600">${routeLabel(w.route)}</span>
-        <span class="badge b-needs">👥 ${w.groupSize||1}</span>
-      </div>
-      <div class="meta">⏱ ${timeAgo(w.timestamp)}</div>
-      <button onclick="dismiss('${id}')" style="margin-top:5px;padding:4px 10px;border:none;border-radius:6px;background:#28a745;color:#fff;font-size:11px;font-weight:600;cursor:pointer">✅ Assigned</button>
-    </div>`).join('');
-}
+  try {
+    const result = await api("/auth/login", {
+      method: "POST",
+      body: JSON.stringify({
+        role: "conductor",
+        name,
+        pin
+      })
+    });
 
-function renderAlert() {
-  const total = Object.values(allWaiting).reduce((s,w) => s + (w.groupSize||1), 0);
-  const el = document.getElementById('demandAlert');
-  if (total >= 3) {
-    el.className = 'alert a-danger'; el.style.display = 'block';
-    el.innerHTML = `🔥 <strong>${total} passengers waiting!</strong> Alert drivers now.`;
-  } else el.style.display = 'none';
-}
+    sessionToken = result.token || null;
 
-// ── Actions ───────────────────────────────────────────────────────
-function setStatus(id, status) {
-  if (status === 'departed') {
-    const taxi = allTaxis[id];
-    if (taxi) db.ref(`history/${id}`).set({ ...taxi, departedAt: Date.now() });
-    db.ref(`taxis/${id}`).remove();
-  } else {
-    db.ref(`taxis/${id}`).update({ status, lastUpdated: Date.now() });
+    if (!sessionToken) {
+      throw new Error("Login succeeded but no session token was returned.");
+    }
+
+    currentUser = result.user;
+    memberships = result.memberships || [];
+
+    sessionStorage.setItem("tc_role", currentUser.role);
+    sessionStorage.setItem("tc_name", currentUser.name || name);
+
+    $("loginScreen").classList.add("hidden");
+    $("appScreen").classList.remove("hidden");
+    $("signOutBtn").style.display = "block";
+
+    renderOperators();
+
+    if (!memberships.length) {
+      showMessage(
+        "contextMessage",
+        "No active operator membership is available for this account."
+      );
+      return;
+    }
+
+    selectedOperatorId = memberships[0].operator_id;
+
+    renderOperators();
+    await loadRoutes();
+    await refreshAll();
+
+  } catch (err) {
+    showMessage("authError", err.message || "Login failed.");
   }
 }
 
-function removeTaxi(id) {
-  if (confirm('Remove this taxi?')) db.ref(`taxis/${id}`).remove();
+async function signOut() {
+  try {
+    await api("/auth/logout", {
+      method: "POST"
+    });
+  } catch {
+    // Local session can still be cleared if the server logout request fails.
+  }
+
+  sessionToken = null;
+  currentUser = null;
+  memberships = [];
+  routes = [];
+  currentLine = null;
+  currentTaxis = [];
+  currentDemand = {
+    waiting: [],
+    demandSignals: []
+  };
+
+  sessionStorage.removeItem("tc_role");
+  sessionStorage.removeItem("tc_name");
+
+  $("appScreen").classList.add("hidden");
+  $("loginScreen").classList.remove("hidden");
+  $("signOutBtn").style.display = "none";
+  $("pinInput").value = "";
 }
 
-function dismiss(id) { db.ref(`waitingPassengers/${id}`).remove(); }
+function renderOperators() {
+  const select = $("operatorSelect");
 
-function cleanupStale() {
-  const cutoff = Date.now() - 2 * 60 * 60 * 1000;
-  Object.entries(allWaiting).forEach(([id, w]) => {
-    if (w.timestamp < cutoff) db.ref(`waitingPassengers/${id}`).remove();
+  select.innerHTML = memberships.map(m => `
+    <option value="${escapeHtml(m.operator_id)}">
+      ${escapeHtml(m.operator_name)}
+    </option>
+  `).join("");
+
+  if (selectedOperatorId) {
+    select.value = selectedOperatorId;
+  }
+}
+
+async function operatorChanged() {
+  selectedOperatorId = $("operatorSelect").value || null;
+
+  selectedRouteId = null;
+  currentLine = null;
+  currentTaxis = [];
+  currentDemand = {
+    waiting: [],
+    demandSignals: []
+  };
+
+  await loadRoutes();
+  await refreshAll();
+}
+
+async function loadRoutes() {
+  try {
+    const result = await api("/routes");
+    routes = result.routes || [];
+
+    renderRoutes();
+
+    if (!selectedRouteId && routes.length) {
+      selectedRouteId = routes[0].id;
+      $("routeSelect").value = selectedRouteId;
+    }
+
+  } catch (err) {
+    showMessage(
+      "contextMessage",
+      "Unable to load routes: " + err.message
+    );
+  }
+}
+
+function renderRoutes() {
+  const select = $("routeSelect");
+
+  select.innerHTML = routes.map(route => `
+    <option value="${escapeHtml(route.id)}">
+      ${escapeHtml(
+        route.name ||
+        `${route.origin || ""} → ${route.destination || ""}`
+      )}
+    </option>
+  `).join("");
+
+  if (selectedRouteId && routes.some(r => r.id === selectedRouteId)) {
+    select.value = selectedRouteId;
+  }
+}
+
+async function routeChanged() {
+  selectedRouteId = $("routeSelect").value || null;
+  await refreshAll();
+}
+
+async function refreshAll() {
+  if (!selectedOperatorId || !selectedRouteId) {
+    renderEmptyState();
+    return;
+  }
+
+  const route = routes.find(r => r.id === selectedRouteId);
+  const membership = memberships.find(
+    m => m.operator_id === selectedOperatorId
+  );
+
+  $("contextMessage").textContent =
+    `${membership?.operator_name || selectedOperatorId} • ` +
+    `${route?.name || selectedRouteId}`;
+
+  await Promise.all([
+    loadLine(),
+    loadTaxis(),
+    loadDemand(),
+    loadStats()
+  ]);
+
+  renderAll();
+}
+
+async function loadLine() {
+  try {
+    const result = await api(
+      `/conductor/line?operatorId=${encodeURIComponent(selectedOperatorId)}` +
+      `&routeId=${encodeURIComponent(selectedRouteId)}`
+    );
+
+    currentLine = result.line || null;
+
+  } catch (err) {
+    currentLine = null;
+    showMessage("lineMessage", err.message);
+  }
+}
+
+async function openLine() {
+  if (!selectedOperatorId || !selectedRouteId) {
+    showMessage("lineMessage", "Select an operator and route first.");
+    return;
+  }
+
+  try {
+    const result = await api("/conductor/line/open", {
+      method: "POST",
+      body: JSON.stringify({
+        operatorId: selectedOperatorId,
+        routeId: selectedRouteId
+      })
+    });
+
+    currentLine = result.line;
+
+    renderAll();
+
+    showMessage(
+      "lineMessage",
+      result.existing
+        ? "Today's loading line is already open."
+        : "Today's loading line has been opened.",
+      "success"
+    );
+
+  } catch (err) {
+    showMessage("lineMessage", err.message);
+  }
+}
+
+async function loadTaxis() {
+  try {
+    const result = await api(
+      `/conductor/taxis?operatorId=${encodeURIComponent(selectedOperatorId)}` +
+      `&routeId=${encodeURIComponent(selectedRouteId)}`
+    );
+
+    currentTaxis = result.taxis || [];
+
+  } catch (err) {
+    currentTaxis = [];
+    showMessage("taxiMessage", err.message);
+  }
+}
+
+async function loadDemand() {
+  try {
+    const result = await api(
+      `/conductor/demand?operatorId=${encodeURIComponent(selectedOperatorId)}` +
+      `&routeId=${encodeURIComponent(selectedRouteId)}`
+    );
+
+    currentDemand = {
+      waiting: result.waiting || [],
+      demandSignals: result.demandSignals || []
+    };
+
+  } catch (err) {
+    currentDemand = {
+      waiting: [],
+      demandSignals: []
+    };
+
+    showMessage("demandSummary", err.message);
+  }
+}
+
+async function loadStats() {
+  try {
+    const result = await api(
+      `/conductor/stats?operatorId=${encodeURIComponent(selectedOperatorId)}`
+    );
+
+    $("statTaxis").textContent = result.activeTaxis ?? 0;
+    $("statTrips").textContent = result.activeTrips ?? 0;
+    $("statWaiting").textContent = result.waitingPassengers ?? 0;
+    $("statDemand").textContent = result.activeDemand ?? 0;
+
+  } catch {
+    $("statTaxis").textContent = "—";
+    $("statTrips").textContent = "—";
+    $("statWaiting").textContent = "—";
+    $("statDemand").textContent = "—";
+  }
+}
+
+function renderAll() {
+  renderLine();
+  renderTaxiSelector();
+  renderTaxis();
+  renderDemand();
+}
+
+function renderLine() {
+  if (!currentLine) {
+    $("lineSummary").innerHTML =
+      '<span class="badge warn">NOT OPEN</span>';
+
+    $("lineDetail").textContent =
+      "No loading line is open for this route today.";
+
+    $("lineEntries").innerHTML = "";
+    return;
+  }
+
+  $("lineSummary").innerHTML = `
+    <span class="badge good">${escapeHtml(currentLine.status)}</span>
+    ${escapeHtml(currentLine.route_name || "")}
+    • ${escapeHtml(currentLine.service_date || "")}
+    • ${currentLine.entries?.length || 0} taxi(s)
+  `;
+
+  $("lineDetail").innerHTML = `
+    <div>
+      <strong>${escapeHtml(currentLine.route_name || "")}</strong>
+    </div>
+    <div class="muted">
+      ${escapeHtml(currentLine.origin || "")}
+      →
+      ${escapeHtml(currentLine.destination || "")}
+      • ${escapeHtml(currentLine.service_mode || "")}
+    </div>
+  `;
+
+  const entries = currentLine.entries || [];
+
+  if (!entries.length) {
+    $("lineEntries").innerHTML =
+      '<div class="muted">No taxis are currently in the loading line.</div>';
+    return;
+  }
+
+  $("lineEntries").innerHTML = entries.map((entry, index) => `
+    <div class="row">
+      <button class="line-position"
+              title="Move taxi up"
+              onclick="moveLineEntry('${escapeHtml(entry.taxi_id)}', -1)">
+        ${index + 1}
+      </button>
+
+      <div class="taxi-info">
+        <strong>
+          ${escapeHtml(entry.vehicle_registration_number || entry.taxi_id)}
+        </strong>
+
+        <div class="muted">
+          ${escapeHtml(entry.driver_name || "No driver assigned")}
+          •
+          ${escapeHtml(entry.capacity || "")} seats
+        </div>
+
+        <span class="badge ${entry.status === "WAITING" ? "good" : "warn"}">
+          ${escapeHtml(entry.status)}
+        </span>
+      </div>
+
+      <div class="taxi-actions">
+        <button class="secondary"
+                onclick="moveLineEntry('${escapeHtml(entry.taxi_id)}', -1)">
+          ↑
+        </button>
+
+        <button class="secondary"
+                onclick="moveLineEntry('${escapeHtml(entry.taxi_id)}', 1)">
+          ↓
+        </button>
+
+        <button class="warning"
+                onclick="replaceLineEntry('${escapeHtml(entry.id)}')">
+          Replace
+        </button>
+
+        <button class="danger"
+                onclick="removeLineEntry('${escapeHtml(entry.id)}')">
+          Remove
+        </button>
+      </div>
+    </div>
+  `).join("");
+}
+
+function renderTaxiSelector() {
+  const select = $("addTaxiSelect");
+
+  if (!currentLine) {
+    select.innerHTML =
+      '<option value="">Open a loading line first</option>';
+    return;
+  }
+
+  const activeLineTaxiIds = new Set(
+    (currentLine.entries || [])
+      .filter(e => !["REMOVED", "REPLACED", "COMPLETED"].includes(e.status))
+      .map(e => e.taxi_id)
+  );
+
+  const available = currentTaxis.filter(
+    taxi =>
+      taxi.route_authorized &&
+      !activeLineTaxiIds.has(taxi.id)
+  );
+
+  select.innerHTML =
+    '<option value="">Select taxi...</option>' +
+    available.map(taxi => `
+      <option value="${escapeHtml(taxi.id)}">
+        ${escapeHtml(
+          taxi.vehicle_registration_number ||
+          taxi.id
+        )}
+        — ${escapeHtml(taxi.driver_name || "No driver")}
+      </option>
+    `).join("");
+}
+
+async function addTaxiToLine() {
+  const taxiId = $("addTaxiSelect").value;
+
+  if (!currentLine) {
+    showMessage("lineMessage2", "Open a loading line first.");
+    return;
+  }
+
+  if (!taxiId) {
+    showMessage("lineMessage2", "Select a taxi.");
+    return;
+  }
+
+  try {
+    const result = await api("/conductor/line/add", {
+      method: "POST",
+      body: JSON.stringify({
+        lineSessionId: currentLine.id,
+        taxiId
+      })
+    });
+
+    currentLine = result.entry
+      ? {
+          ...currentLine,
+          entries: [
+            ...(currentLine.entries || []).filter(
+              e => e.id !== result.entry.id
+            ),
+            result.entry
+          ]
+        }
+      : currentLine;
+
+    await loadLine();
+    renderAll();
+
+    showMessage(
+      "lineMessage2",
+      result.existing
+        ? "Taxi is already in the loading line."
+        : "Taxi added to the loading line.",
+      "success"
+    );
+
+  } catch (err) {
+    showMessage("lineMessage2", err.message);
+  }
+}
+
+async function removeLineEntry(lineEntryId) {
+  if (!confirm("Remove this taxi from today's loading line?")) {
+    return;
+  }
+
+  try {
+    await api("/conductor/line/remove", {
+      method: "POST",
+      body: JSON.stringify({
+        lineEntryId
+      })
+    });
+
+    await loadLine();
+    await loadStats();
+    renderAll();
+
+    showMessage(
+      "lineMessage2",
+      "Taxi removed from the loading line.",
+      "success"
+    );
+
+  } catch (err) {
+    showMessage("lineMessage2", err.message);
+  }
+}
+
+async function replaceLineEntry(lineEntryId) {
+  const activeIds = new Set(
+    (currentLine?.entries || [])
+      .filter(e => !["REMOVED", "REPLACED", "COMPLETED"].includes(e.status))
+      .map(e => e.taxi_id)
+  );
+
+  const available = currentTaxis.filter(
+    taxi =>
+      taxi.route_authorized &&
+      !activeIds.has(taxi.id)
+  );
+
+  if (!available.length) {
+    showMessage(
+      "lineMessage2",
+      "No other authorized taxi is available for replacement."
+    );
+    return;
+  }
+
+  const options = available
+    .map(
+      (taxi, index) =>
+        `${index + 1}. ${
+          taxi.vehicle_registration_number || taxi.id
+        } — ${taxi.driver_name || "No driver"}`
+    )
+    .join("\n");
+
+  const answer = prompt(
+    "Select replacement taxi by number:\n\n" + options
+  );
+
+  if (!answer) return;
+
+  const index = Number(answer) - 1;
+
+  if (
+    !Number.isInteger(index) ||
+    index < 0 ||
+    index >= available.length
+  ) {
+    showMessage("lineMessage2", "Invalid replacement selection.");
+    return;
+  }
+
+  try {
+    await api("/conductor/line/replace", {
+      method: "POST",
+      body: JSON.stringify({
+        lineEntryId,
+        replacementTaxiId: available[index].id
+      })
+    });
+
+    await loadLine();
+    renderAll();
+
+    showMessage(
+      "lineMessage2",
+      "Taxi replaced successfully.",
+      "success"
+    );
+
+  } catch (err) {
+    showMessage("lineMessage2", err.message);
+  }
+}
+
+async function moveLineEntry(taxiId, direction) {
+  if (!currentLine) return;
+
+  const entries = (currentLine.entries || [])
+    .filter(e => !["REMOVED", "REPLACED", "COMPLETED"].includes(e.status))
+    .sort((a, b) => a.position - b.position);
+
+  const index = entries.findIndex(e => e.taxi_id === taxiId);
+
+  if (index < 0) return;
+
+  const target = index + direction;
+
+  if (target < 0 || target >= entries.length) {
+    return;
+  }
+
+  const taxiIds = entries.map(e => e.taxi_id);
+
+  [
+    taxiIds[index],
+    taxiIds[target]
+  ] = [
+    taxiIds[target],
+    taxiIds[index]
+  ];
+
+  try {
+    const result = await api("/conductor/line/reorder", {
+      method: "POST",
+      body: JSON.stringify({
+        lineSessionId: currentLine.id,
+        taxiIds
+      })
+    });
+
+    currentLine = result.line;
+    renderAll();
+
+  } catch (err) {
+    showMessage("lineMessage2", err.message);
+  }
+}
+
+function renderTaxis() {
+  const el = $("taxiList");
+
+  if (!currentTaxis.length) {
+    el.innerHTML =
+      '<div class="muted">No active taxis found for this operator.</div>';
+    return;
+  }
+
+  el.innerHTML = currentTaxis.map(taxi => {
+    const statusClass =
+      taxi.status === "OFFLINE"
+        ? ""
+        : taxi.status === "breakdown"
+          ? "bad"
+          : "good";
+
+    return `
+      <div class="row">
+        <div class="taxi-info">
+          <strong>
+            ${escapeHtml(
+              taxi.vehicle_registration_number || taxi.id
+            )}
+          </strong>
+
+          <div class="muted">
+            ${escapeHtml(taxi.driver_name || "No driver")}
+            •
+            ${escapeHtml(taxi.capacity || 0)} seats
+            •
+            ${escapeHtml(taxi.passengers_onboard || 0)} onboard
+          </div>
+
+          <span class="badge ${statusClass}">
+            ${escapeHtml(taxi.status)}
+          </span>
+
+          ${
+            taxi.route_authorized
+              ? '<span class="badge good">ROUTE AUTHORIZED</span>'
+              : '<span class="badge warn">NOT AUTHORIZED</span>'
+          }
+        </div>
+
+        ${
+          currentLine && taxi.route_authorized
+            ? `
+              <button
+                class="success"
+                style="width:auto"
+                onclick="quickAddTaxi('${escapeHtml(taxi.id)}')">
+                Add
+              </button>
+            `
+            : ""
+        }
+      </div>
+    `;
+  }).join("");
+}
+
+async function quickAddTaxi(taxiId) {
+  $("addTaxiSelect").value = taxiId;
+  await addTaxiToLine();
+}
+
+function renderDemand() {
+  const waiting = currentDemand.waiting || [];
+  const signals = currentDemand.demandSignals || [];
+
+  $("demandSummary").innerHTML = `
+    <div class="grid">
+      <div class="stat">
+        Waiting groups
+        <strong>${waiting.length}</strong>
+      </div>
+
+      <div class="stat">
+        Waiting passengers
+        <strong>
+          ${waiting.reduce(
+            (sum, item) => sum + Number(item.group_size || 1),
+            0
+          )}
+        </strong>
+      </div>
+
+      <div class="stat">
+        Demand signals
+        <strong>${signals.length}</strong>
+      </div>
+
+      <div class="stat">
+        Signalled passengers
+        <strong>
+          ${signals.reduce(
+            (sum, item) => sum + Number(item.group_size || 1),
+            0
+          )}
+        </strong>
+      </div>
+    </div>
+  `;
+
+  if (!waiting.length) {
+    $("waitingList").innerHTML =
+      '<div class="muted">No waiting passengers for this route.</div>';
+  } else {
+    $("waitingList").innerHTML = waiting.map(item => `
+      <div class="row">
+        <div>
+          <strong>
+            ${escapeHtml(item.passenger_name || "Passenger")}
+          </strong>
+
+          <div class="muted">
+            Group: ${escapeHtml(item.group_size || 1)}
+            ${
+              item.pickup_point_name
+                ? ` • Pickup: ${escapeHtml(item.pickup_point_name)}`
+                : ""
+            }
+          </div>
+        </div>
+
+        <span class="badge ${item.status === "WAITING" ? "warn" : "good"}">
+          ${escapeHtml(item.status)}
+        </span>
+      </div>
+    `).join("");
+  }
+
+  if (!signals.length) {
+    $("signalList").innerHTML =
+      '<div class="muted">No active demand signals for this route.</div>';
+  } else {
+    $("signalList").innerHTML = signals.map(item => `
+      <div class="row">
+        <div>
+          <strong>
+            ${escapeHtml(item.signal_type || "DEMAND")}
+          </strong>
+
+          <div class="muted">
+            Group: ${escapeHtml(item.group_size || 1)}
+            ${
+              item.pickup_point_name
+                ? ` • Pickup: ${escapeHtml(item.pickup_point_name)}`
+                : ""
+            }
+          </div>
+        </div>
+
+        <span class="badge good">
+          ${escapeHtml(item.status)}
+        </span>
+      </div>
+    `).join("");
+  }
+}
+
+async function summonRoute() {
+  const passengerCount =
+    Number($("summonCount").value || 1);
+
+  if (!selectedOperatorId || !selectedRouteId) {
+    showMessage(
+      "summonMessage",
+      "Select an operator and route first."
+    );
+    return;
+  }
+
+  try {
+    const result = await api("/conductor/summon", {
+      method: "POST",
+      body: JSON.stringify({
+        operatorId: selectedOperatorId,
+        routeId: selectedRouteId,
+        requestType: "ROUTE_DEMAND",
+        passengerCount
+      })
+    });
+
+    showMessage(
+      "summonMessage",
+      `Summon created: ${result.summon?.id || "pending"}`,
+      "success"
+    );
+
+  } catch (err) {
+    showMessage("summonMessage", err.message);
+  }
+}
+
+function renderEmptyState() {
+  $("statTaxis").textContent = "0";
+  $("statTrips").textContent = "0";
+  $("statWaiting").textContent = "0";
+  $("statDemand").textContent = "0";
+
+  $("lineSummary").textContent =
+    "Select an operator and route.";
+
+  $("lineDetail").textContent =
+    "Select an operator and route.";
+
+  $("lineEntries").innerHTML = "";
+  $("taxiList").innerHTML = "";
+  $("demandSummary").innerHTML = "";
+  $("waitingList").innerHTML = "";
+  $("signalList").innerHTML = "";
+}
+
+function switchTab(name, button) {
+  document.querySelectorAll(".tab").forEach(tab => {
+    tab.classList.remove("active");
   });
-  alert('✅ Stale signals removed.');
+
+  document.querySelectorAll(".tabs button").forEach(btn => {
+    btn.classList.remove("active");
+  });
+
+  const target = $("tab-" + name);
+
+  if (target) {
+    target.classList.add("active");
+  }
+
+  if (button) {
+    button.classList.add("active");
+  }
 }
 
-// ── Notifications (replaces FCM on Spark) ─────────────────────────
-function requestNotificationPermission() {
-  if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
-}
-
-function notifyRoute(route) {
-  const waiting = Object.values(allWaiting).filter(w => w.route === route);
-  const count = waiting.reduce((s,w) => s + (w.groupSize||1), 0);
-  // Write a summon signal to DB — driver apps poll this
-  db.ref(`summons/${route}`).set({ count, timestamp: Date.now(), conductorId: firebase.auth().currentUser?.uid });
-  alert(`✅ Alert written for ${ROUTES[route].label} drivers. ${count} passengers waiting.`);
-}
-
-function clearAllData() {
-  if (!confirm('Delete ALL taxis, waiting passengers and summons? This cannot be undone.')) return;
-  Promise.all([
-    db.ref('taxis').remove(),
-    db.ref('waitingPassengers').remove(),
-    db.ref('summons').remove()
-  ]).then(() => alert('✅ All data cleared.'));
-}
-
-// ── Manage ────────────────────────────────────────────────────────
-function selectRole(r) {
-  regRole = r;
-  ['driver','conductor','passenger'].forEach(x => document.getElementById(`role-${x}`).classList.toggle('sel', x === r));
-}
-
-async function registerPhone() {
-  const phone = document.getElementById('regPhone').value.trim();
-  if (!phone) { alert('Enter a phone number.'); return; }
-  const key = phone.replace(/[^0-9]/g, '');
-  await db.ref(`approvedPhones/${key}`).set(regRole);
-  document.getElementById('regMsg').innerHTML = `<span style="color:#28a745">✅ ${phone} approved as ${regRole}</span>`;
-  document.getElementById('regPhone').value = '';
-}
-
-// ── Helpers ───────────────────────────────────────────────────────
-function show(id) { document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
-function switchTab(n) {
-  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', ['overview','taxis','waiting','manage'][i] === n));
-  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-  document.getElementById(`tab-${n}`).classList.add('active');
-}
+$("pinInput").addEventListener("keydown", event => {
+  if (event.key === "Enter") {
+    pinLogin();
+  }
+});
 </script>
+
 </body>
 </html>

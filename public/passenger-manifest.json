@@ -1,9 +1,1 @@
-{
-  "name": "TaxiConnect",
-  "short_name": "TaxiConnect",
-  "start_url": "/passenger.html",
-  "display": "standalone",
-  "background_color": "#1a1a2e",
-  "theme_color": "#1a1a2e",
-  "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
-}
+{"name":"TaxiConnect","short_name":"TaxiConnect","start_url":"/","display":"standalone","background_color":"#1a1a2e","theme_color":"#1a1a2e","icons":[{"src":"/icon-192.png","sizes":"192x192","type":"image/png"}]}

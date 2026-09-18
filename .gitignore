@@ -30,3 +30,26 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+firebase/functions/.env
+
+# Cloudflare local secrets
+cloudflare/.dev.vars
+
+# Cloudflare local development state
+cloudflare/.wrangler/
+
+# Cloudflare migration/implementation backups
+cloudflare/backup_*/
+cloudflare/migration_backup_*/
+
+# Local migration/debug backups
+backup_*/
+archive/
+
+# Temporary migration/deployment scripts
+final-taxiconnect-patch.sh
+finish-taxiconnect-backend.sh
+finish-taxiconnect-fix.sh
+fix-taxiconnect.sh
+update-and-deploy.sh
+update-and-deploy.sh.save

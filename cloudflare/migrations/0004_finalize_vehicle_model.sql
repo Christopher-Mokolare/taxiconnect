@@ -1,0 +1,8 @@
+-- Compatibility migration.
+--
+-- The physical taxi/operator vehicle model originally planned for
+-- this migration was incorporated into 0003_route_first_domain.sql.
+--
+-- This migration is intentionally a no-op so fresh/local databases
+-- retain a consistent migration sequence without attempting to
+-- duplicate columns or indexes already created by 0003.

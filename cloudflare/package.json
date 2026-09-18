@@ -1,0 +1,16 @@
+{
+  "name": "taxiconnect-cloudflare",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "d1:create": "wrangler d1 create taxiconnect",
+    "d1:local": "wrangler d1 execute taxiconnect --local --file=./migrations/0001_initial.sql",
+    "d1:remote": "wrangler d1 execute taxiconnect --remote --file=./migrations/0001_initial.sql"
+  },
+  "devDependencies": {
+    "wrangler": "latest"
+  }
+}

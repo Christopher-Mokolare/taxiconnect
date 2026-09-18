@@ -1,190 +1,1584 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TaxiConnect</title>
-<meta name="theme-color" content="#1a1a2e">
-<link rel="manifest" href="/passenger-manifest.json">
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"
-        integrity="sha384-sEVIly94UBRLKWdkYoPpSG7GD/e79YHMrxVyZaOk712Ga7+EAw6w1EFi+xBzBdd+"
-        crossorigin="anonymous"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"
-        integrity="sha384-EkqK+ezBWJuvO3hfrSx2iVqr3YQbhmnzn8kPhOpBZ+0GMVU5oGSgptwIu8D84HjE"
-        crossorigin="anonymous"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"
-        integrity="sha384-1/m+A1jVWbD3yiK3/vtFvm1+LjK1WLpSoDY+Kaxppwn/yP9BVSgdHTNQVOjrzUO5"
-        crossorigin="anonymous"></script>
-<script src="/firebase-config.js"></script>
-<style>
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:-apple-system,sans-serif;background:#f0f2f5;min-height:100vh}
-  header{background:#1a1a2e;color:#fff;padding:14px 16px;display:flex;justify-content:space-between;align-items:center}
-  header h1{font-size:16px}
-  .btn-link{background:none;border:1px solid rgba(255,255,255,.3);color:#fff;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:12px}
-  .screen{display:none;padding:12px;max-width:420px;margin:0 auto}
-  .screen.active{display:block}
-  .card{background:#fff;border-radius:12px;padding:16px;margin-bottom:10px;box-shadow:0 1px 4px rgba(0,0,0,.08)}
-  .card h3{font-size:12px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px}
-  .btn{display:block;width:100%;padding:14px;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;margin-top:10px}
-  .btn-primary{background:#e94560;color:#fff}
-  .btn-grey{background:#6c757d;color:#fff}
-  input[type=tel]{width:100%;padding:11px;border:1px solid #ddd;border-radius:8px;font-size:14px;margin-top:6px}
-  .otp-input{letter-spacing:8px;font-size:22px;text-align:center}
-  .route-row{display:flex;gap:8px;margin-top:8px}
-  .route-btn{flex:1;padding:16px 8px;border:2px solid #ddd;border-radius:10px;background:#fff;font-size:14px;font-weight:700;cursor:pointer;text-align:center;line-height:1.5}
-  .route-btn.sel{border-color:#e94560;background:#fff0f3;color:#e94560}
-  .taxi-row{padding:10px 0;border-bottom:1px solid #f5f5f5}
-  .taxi-row:last-child{border-bottom:none}
-  .row-header{display:flex;justify-content:space-between;align-items:center}
-  .badge{display:inline-block;padding:3px 10px;border-radius:10px;font-size:12px;font-weight:600}
-  .b-green{background:#d4edda;color:#155724}
-  .b-orange{background:#fff3cd;color:#856404}
-  .b-red{background:#f8d7da;color:#721c24}
-  .meta{font-size:12px;color:#888;margin-top:4px}
-  .counter-wrap{display:flex;align-items:center;gap:16px;margin-top:10px}
-  .cbtn{width:40px;height:40px;border:none;border-radius:50%;font-size:20px;font-weight:700;cursor:pointer}
-  .cbtn.minus{background:#f8d7da;color:#721c24}
-  .cbtn.plus{background:#d4edda;color:#155724}
-  .cval{font-size:28px;font-weight:700;min-width:40px;text-align:center}
-  .alert{padding:10px 12px;border-radius:8px;font-size:13px;margin-bottom:10px;border-left:4px solid}
-  .a-success{background:#d4edda;border-color:#28a745}
-  .a-danger{background:#f8d7da;border-color:#dc3545}
-  #recaptcha-container{margin-top:10px}
-  .empty{color:#aaa;font-size:13px;text-align:center;padding:16px 0}
-  .spinner{display:inline-block;width:16px;height:16px;border:2px solid #ddd;border-top-color:#e94560;border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle}
-  @keyframes spin{to{transform:rotate(360deg)}}
-</style>
+  <meta charset="UTF-8">
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+  <meta
+    name="theme-color"
+    content="#111827"
+  >
+  <title>TaxiConnect — Find a Taxi</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family:
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        Roboto,
+        Arial,
+        sans-serif;
+      background: #f5f7fa;
+      color: #111827;
+    }
+
+    .container {
+      width: min(720px, calc(100% - 28px));
+      margin: 0 auto;
+      padding: 24px 0 48px;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 22px;
+    }
+
+    .logo {
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+
+    .subtitle {
+      margin-top: 5px;
+      color: #6b7280;
+      font-size: 14px;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+      border: 1px solid #e5e7eb;
+    }
+
+    .card h2 {
+      margin: 0 0 6px;
+      font-size: 18px;
+    }
+
+    .muted {
+      color: #6b7280;
+      font-size: 13px;
+    }
+
+    .route-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .route-btn {
+      border: 2px solid #e5e7eb;
+      background: #fff;
+      border-radius: 12px;
+      padding: 14px 10px;
+      cursor: pointer;
+      font-weight: 700;
+      color: #111827;
+      text-align: left;
+      transition: 0.15s;
+    }
+
+    .route-btn:hover {
+      border-color: #9ca3af;
+    }
+
+    .route-btn.sel {
+      border-color: #111827;
+      background: #f3f4f6;
+    }
+
+    .route-name {
+      display: block;
+      font-size: 15px;
+    }
+
+    .route-meta {
+      display: block;
+      margin-top: 4px;
+      color: #6b7280;
+      font-size: 12px;
+      font-weight: 400;
+    }
+
+    .mode-grid {
+      display: grid;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .mode-option {
+      border: 1px solid #d1d5db;
+      border-radius: 10px;
+      padding: 11px 12px;
+      cursor: pointer;
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+
+    .mode-option input {
+      margin-top: 3px;
+    }
+
+    .mode-title {
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    .mode-description {
+      margin-top: 2px;
+      color: #6b7280;
+      font-size: 12px;
+    }
+
+    label.field-label {
+      display: block;
+      margin: 14px 0 6px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    select,
+    input[type="text"],
+    input[type="number"] {
+      width: 100%;
+      padding: 11px 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 9px;
+      background: #fff;
+      font: inherit;
+      font-size: 14px;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 78px;
+      resize: vertical;
+      padding: 11px 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 9px;
+      font: inherit;
+      font-size: 14px;
+    }
+
+    .group-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-top: 10px;
+    }
+
+    .counter {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .counter button {
+      width: 38px;
+      height: 38px;
+      border: 1px solid #d1d5db;
+      background: #fff;
+      border-radius: 9px;
+      cursor: pointer;
+      font-size: 20px;
+    }
+
+    .counter-value {
+      min-width: 30px;
+      text-align: center;
+      font-weight: 800;
+      font-size: 18px;
+    }
+
+    .btn {
+      width: 100%;
+      border: 0;
+      border-radius: 10px;
+      padding: 13px 16px;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 14px;
+      margin-top: 12px;
+    }
+
+    .btn:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    .btn-primary {
+      background: #111827;
+      color: #fff;
+    }
+
+    .btn-secondary {
+      background: #e5e7eb;
+      color: #111827;
+    }
+
+    .btn-danger {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .alert {
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 13px;
+      margin-top: 10px;
+    }
+
+    .alert-info {
+      background: #eff6ff;
+      color: #1e40af;
+    }
+
+    .alert-success {
+      background: #ecfdf5;
+      color: #065f46;
+    }
+
+    .alert-danger {
+      background: #fef2f2;
+      color: #991b1b;
+    }
+
+    .taxi {
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 14px;
+      margin-top: 10px;
+    }
+
+    .taxi-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .taxi-registration {
+      font-weight: 800;
+    }
+
+    .status {
+      font-size: 11px;
+      font-weight: 800;
+      border-radius: 999px;
+      padding: 5px 8px;
+      background: #ecfdf5;
+      color: #047857;
+    }
+
+    .taxi-details {
+      margin-top: 9px;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 7px;
+      color: #6b7280;
+      font-size: 12px;
+    }
+
+    .empty {
+      text-align: center;
+      padding: 18px 8px;
+      color: #6b7280;
+      font-size: 13px;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .loading {
+      color: #6b7280;
+      font-size: 13px;
+      padding: 10px 0;
+    }
+
+    .small-note {
+      margin-top: 7px;
+      color: #6b7280;
+      font-size: 11px;
+      line-height: 1.45;
+    }
+
+    .location-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .location-actions button {
+      flex: 1;
+      border: 1px solid #d1d5db;
+      background: #fff;
+      border-radius: 9px;
+      padding: 9px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .coords {
+      margin-top: 7px;
+      color: #047857;
+      font-size: 12px;
+    }
+
+    @media (max-width: 520px) {
+      .route-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .taxi-details {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
 </head>
+
 <body>
-<header>
-  <h1>🚕 TaxiConnect</h1>
-  <button class="btn-link" id="signOutBtn" onclick="signOut()" style="display:none">Sign Out</button>
-</header>
+  <main class="container">
 
-<!-- AUTH -->
-<div id="authScreen" class="screen active">
-  <div class="card" style="margin-top:20px">
-    <h3>Welcome</h3>
-    <p style="font-size:13px;color:#666;margin-bottom:8px">No sign-in needed. Just tap your route to see available taxis.</p>
-    <button class="btn btn-primary" onclick="enterApp()">🚕 Find a Taxi</button>
-  </div>
-</div>
+    <header class="header">
+      <div class="logo">🚕 TaxiConnect</div>
+      <div class="subtitle">
+        Find available taxis and signal your travel demand.
+      </div>
+    </header>
 
-<!-- APP -->
-<div id="appScreen" class="screen">
-  <div class="card" style="margin-top:10px">
-    <h3>Where are you going?</h3>
-    <div class="route-row">
-      <button class="route-btn sel" id="pass-sun" onclick="selectRoute('SUN_CITY')">🏘 Sun City<br><small style="font-weight:400;font-size:12px">Sun Village</small></button>
-      <button class="route-btn" id="pass-rust" onclick="selectRoute('RUSTENBURG')">🏙 Rustenburg<br><small style="font-weight:400;font-size:12px">Town</small></button>
-    </div>
-  </div>
+    <section class="card">
+      <h2>Choose your route</h2>
+      <div class="muted">
+        Routes are provided by TaxiConnect operators.
+      </div>
 
-  <div class="card">
-    <h3>Available Taxis</h3>
-    <div id="taxiList"><span class="spinner"></span></div>
-  </div>
+      <div id="routeList" class="route-grid">
+        <div class="loading">Loading routes...</div>
+      </div>
 
-  <div class="card">
-    <h3>Signal You're Waiting</h3>
-    <p style="font-size:12px;color:#666">No taxi? Alert the conductor — they'll send a driver.</p>
-    <div class="counter-wrap">
-      <button class="cbtn minus" onclick="adjGroup(-1)">−</button>
-      <span class="cval" id="groupVal">1</span>
-      <button class="cbtn plus" onclick="adjGroup(1)">+</button>
-      <span style="font-size:13px;color:#666">people</span>
-    </div>
-    <button class="btn btn-primary" id="waitBtn" onclick="sendSignal()">📢 I'M WAITING — Alert Conductor</button>
-    <button class="btn btn-grey" id="cancelBtn" onclick="cancelSignal()" style="display:none">✖ Cancel Signal</button>
-  </div>
-</div>
+      <div id="routeError" class="alert alert-danger hidden"></div>
+    </section>
 
-<script>
-firebase.initializeApp(FIREBASE_CONFIG);
-const db = firebase.database();
-let selectedRoute = 'SUN_CITY', groupSize = 1;
-let myWaitId = null, allTaxis = {};
+    <section id="availabilityCard" class="card hidden">
+      <h2>Available taxis</h2>
+      <div id="availabilitySummary" class="muted"></div>
 
-// ── Auth ──────────────────────────────────────────────────────────
-firebase.auth().signInAnonymously().then(() => {
-  db.ref('taxis').on('value', s => { allTaxis = s.val() || {}; renderTaxis(); });
-}).catch(() => {});
+      <div id="taxiList">
+        <div class="loading">Loading availability...</div>
+      </div>
+    </section>
 
-function enterApp() {
-  show('appScreen');
-}
+    <section id="requestCard" class="card hidden">
+      <h2>Tell us where you're travelling from</h2>
+      <div id="serviceModeText" class="muted"></div>
 
-function signOut() {
-  if (myWaitId) cancelSignal();
-  show('authScreen');
-  document.getElementById('signOutBtn').style.display = 'none';
-}
+      <div id="modeSection">
+        <div class="mode-grid" id="modeOptions"></div>
+      </div>
 
-function showErr(m) { const e = document.getElementById('authError'); if(e){ e.textContent = m; e.style.display = 'block'; } }
+      <label
+        class="field-label"
+        for="originPoint"
+      >
+        Travelling from
+      </label>
 
-// ── Taxis ─────────────────────────────────────────────────────────
-function renderTaxis() {
-  const el = document.getElementById('taxiList');
-  const taxis = Object.entries(allTaxis).filter(([,t]) => t.route === selectedRoute);
-  if (!taxis.length) {
-    el.innerHTML = `<div class="alert a-danger">🔴 No taxis to <strong>${ROUTES[selectedRoute].label}</strong> right now.<br><small>Use the button below to alert the conductor.</small></div>`;
-    return;
-  }
-  el.innerHTML = taxis.map(([,t]) => {
-    const needed = (t.capacity||14) - (t.passengersOnboard||0);
-    const badge = needed <= 0 ? `<span class="badge b-red">FULL</span>`
-      : needed <= 3 ? `<span class="badge b-orange">🔥 ${needed} seat${needed===1?'':'s'} left</span>`
-      : `<span class="badge b-green">🪑 ${needed} seats free</span>`;
-    const status = needed <= 0 ? 'Leaving soon' : needed <= 3 ? 'Almost full — hurry!' : '🟢 Loading passengers';
-    return `<div class="taxi-row">
-      <div class="row-header"><strong style="font-size:14px">${t.driverName}</strong>${badge}</div>
-      <div class="meta">${status} · ${t.passengersOnboard||0}/${t.capacity||14} onboard</div>
-    </div>`;
-  }).join('');
-}
+      <select id="originPoint">
+        <option value="">Choose your starting point</option>
+      </select>
 
-// ── Route & group ─────────────────────────────────────────────────
-function selectRoute(r) {
-  selectedRoute = r;
-  document.getElementById('pass-sun').classList.toggle('sel', r === 'SUN_CITY');
-  document.getElementById('pass-rust').classList.toggle('sel', r === 'RUSTENBURG');
-  renderTaxis();
-}
+      <label
+        class="field-label"
+        for="destinationPoint"
+      >
+        Travelling to
+      </label>
 
-function adjGroup(d) {
-  groupSize = Math.max(1, Math.min(10, groupSize + d));
-  document.getElementById('groupVal').textContent = groupSize;
-}
+      <select id="destinationPoint">
+        <option value="">Choose your destination</option>
+      </select>
 
-// ── Waiting signal ────────────────────────────────────────────────
-async function sendSignal() {
-  const user = firebase.auth().currentUser;
-  if (!user) return;
-  myWaitId = user.uid;
-  await db.ref(`waitingPassengers/${myWaitId}`).set({ route: selectedRoute, groupSize, passengerId: user.uid, timestamp: Date.now() });
+      <div id="journeyNote" class="small-note">
+        Select your FROM and TO points. Your pickup location is separate and
+        can be a rank, another pickup point, your GPS location, or a description.
+      </div>
 
-  // Update demand heatmap
-  db.ref(`demandHeatmap/${selectedRoute}`).transaction(cur => ({
-    count: ((cur && cur.count) || 0) + 1, lastUpdated: Date.now()
-  }));
+      <label
+        id="pickupPointLabel"
+        class="field-label"
+        for="pickupPoint"
+      >
+        Pickup point
+      </label>
 
-  document.getElementById('waitBtn').style.display = 'none';
-  document.getElementById('cancelBtn').style.display = 'block';
-  document.querySelector('#appScreen .card:last-child').insertAdjacentHTML('afterbegin',
-    `<div class="alert a-success" id="waitConfirm">✅ Conductor alerted! Waiting for a taxi to <strong>${ROUTES[selectedRoute].label}</strong>.</div>`);
-}
+      <select id="pickupPoint">
+        <option value="">Choose a pickup point</option>
+      </select>
 
-async function cancelSignal() {
-  if (myWaitId) { await db.ref(`waitingPassengers/${myWaitId}`).remove(); myWaitId = null; }
-  document.getElementById('waitBtn').style.display = 'block';
-  document.getElementById('cancelBtn').style.display = 'none';
-  const c = document.getElementById('waitConfirm');
-  if (c) c.remove();
-}
+      <div id="pickupPointNote" class="small-note">
+        You can also describe your location below if there is no suitable
+        pickup point.
+      </div>
 
-// ── Helpers ───────────────────────────────────────────────────────
-function show(id) { document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
-</script>
+      <label
+        class="field-label"
+        for="pickupDescription"
+      >
+        Location description
+      </label>
+
+      <textarea
+        id="pickupDescription"
+        maxlength="500"
+        placeholder="Example: Near the roadside shops opposite the village entrance"
+      ></textarea>
+
+      <div class="location-actions">
+        <button type="button" onclick="useCurrentLocation()">
+          📍 Use my location
+        </button>
+
+        <button type="button" onclick="clearLocation()">
+          Clear location
+        </button>
+      </div>
+
+      <div id="coords" class="coords hidden"></div>
+
+      <label class="field-label">
+        Number of passengers
+      </label>
+
+      <div class="group-row">
+        <div class="counter">
+          <button type="button" onclick="adjustGroup(-1)">−</button>
+          <div id="groupSize" class="counter-value">1</div>
+          <button type="button" onclick="adjustGroup(1)">+</button>
+        </div>
+
+        <div class="muted">
+          Maximum group size: 10
+        </div>
+      </div>
+
+      <button
+        id="waitBtn"
+        class="btn btn-primary"
+        type="button"
+        onclick="sendWaiting()"
+      >
+        📢 I'm waiting
+      </button>
+
+      <button
+        id="demandBtn"
+        class="btn btn-secondary"
+        type="button"
+        onclick="sendDemand()"
+      >
+        📍 Signal route demand
+      </button>
+
+      <button
+        id="cancelBtn"
+        class="btn btn-danger hidden"
+        type="button"
+        onclick="cancelWaiting()"
+      >
+        ✖ Cancel waiting request
+      </button>
+
+      <div id="requestStatus"></div>
+
+      <div class="small-note">
+        Your location is optional. TaxiConnect does not require GPS
+        permission to request service. You may use a pickup point or simply
+        describe where you are.
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    "use strict";
+
+    const API_BASE = "/api";
+
+    const PASSENGER_STORAGE_KEY =
+      "taxiconnect_passenger_id";
+
+    let passengerId =
+      localStorage.getItem(PASSENGER_STORAGE_KEY);
+
+    if (!passengerId) {
+      passengerId =
+        "passenger_" +
+        crypto.randomUUID();
+
+      localStorage.setItem(
+        PASSENGER_STORAGE_KEY,
+        passengerId
+      );
+    }
+
+    let routes = [];
+    let selectedRoute = null;
+    let availability = null;
+
+    let requestMode = null;
+    let groupSize = 1;
+    let waitingId = null;
+
+    let originPointId = null;
+    let destinationPointId = null;
+
+    let latitude = null;
+    let longitude = null;
+
+    const $ = id =>
+      document.getElementById(id);
+
+    async function api(path, options = {}) {
+      const headers = {
+        "Content-Type": "application/json",
+        "X-Passenger-Id": passengerId,
+        ...(options.headers || {})
+      };
+
+      const response =
+        await fetch(API_BASE + path, {
+          ...options,
+          headers
+        });
+
+      let data = null;
+
+      try {
+        data = await response.json();
+      } catch {
+        data = {
+          error: "Invalid server response."
+        };
+      }
+
+      if (!response.ok) {
+        throw new Error(
+          data?.error ||
+          data?.message ||
+          `Request failed (${response.status})`
+        );
+      }
+
+      return data;
+    }
+
+    function show(id) {
+      $(id).classList.remove("hidden");
+    }
+
+    function hide(id) {
+      $(id).classList.add("hidden");
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    async function loadRoutes() {
+      try {
+        const data =
+          await api("/routes");
+
+        routes =
+          Array.isArray(data.routes)
+            ? data.routes
+            : [];
+
+        renderRoutes();
+
+        if (routes.length) {
+          selectRoute(routes[0].id);
+        }
+      } catch (error) {
+        $("routeList").innerHTML = "";
+        $("routeError").textContent =
+          error.message;
+
+        show("routeError");
+      }
+    }
+
+    function renderRoutes() {
+      const el = $("routeList");
+
+      if (!routes.length) {
+        el.innerHTML =
+          '<div class="empty">No active routes are currently available.</div>';
+        return;
+      }
+
+      el.innerHTML =
+        routes.map(route => `
+          <button
+            type="button"
+            class="route-btn"
+            id="route-${escapeHtml(route.id)}"
+            onclick="selectRoute('${escapeHtml(route.id)}')"
+          >
+            <span class="route-name">
+              ${escapeHtml(route.origin)}
+              → ${escapeHtml(route.destination)}
+            </span>
+
+            <span class="route-meta">
+              ${escapeHtml(route.name)}
+              · ${escapeHtml(formatServiceMode(route.service_mode))}
+            </span>
+          </button>
+        `).join("");
+    }
+
+    function formatServiceMode(mode) {
+      switch (mode) {
+        case "RANK_DEPARTURE":
+          return "Rank departure";
+
+        case "COLLECTION":
+          return "Collection";
+
+        case "HYBRID":
+          return "Rank + collection";
+
+        default:
+          return mode || "";
+      }
+    }
+
+    async function selectRoute(routeId) {
+      selectedRoute =
+        routes.find(route =>
+          route.id === routeId
+        );
+
+      if (!selectedRoute) {
+        return;
+      }
+
+      document
+        .querySelectorAll(".route-btn")
+        .forEach(button =>
+          button.classList.remove("sel")
+        );
+
+      const selectedButton =
+        document.getElementById(
+          `route-${routeId}`
+        );
+
+      if (selectedButton) {
+        selectedButton.classList.add("sel");
+      }
+
+      hide("routeError");
+      show("availabilityCard");
+      show("requestCard");
+
+      $("taxiList").innerHTML =
+        '<div class="loading">Loading availability...</div>';
+
+      $("availabilitySummary").textContent =
+        "Checking current taxi availability...";
+
+      resetLocation();
+      waitingId = null;
+      originPointId = null;
+      destinationPointId = null;
+      hide("cancelBtn");
+      $("requestStatus").innerHTML = "";
+
+      try {
+        const data =
+          await api(
+            `/routes/${encodeURIComponent(routeId)}`
+          );
+
+        availability =
+          data.availability;
+
+        renderAvailability();
+        renderRequestModes();
+        renderJourneyPoints();
+        renderPickupPoints();
+
+        if (
+          selectedRoute.service_mode ===
+          "RANK_DEPARTURE"
+        ) {
+          setRequestMode("RANK");
+        } else {
+          setRequestMode("COLLECTION");
+        }
+
+      } catch (error) {
+        availability = null;
+
+        $("taxiList").innerHTML = `
+          <div class="alert alert-danger">
+            ${escapeHtml(error.message)}
+          </div>
+        `;
+
+        $("availabilitySummary").textContent =
+          "Availability could not be loaded.";
+      }
+    }
+
+    function renderAvailability() {
+      const trips =
+        availability?.trips || [];
+
+      const route =
+        availability?.route ||
+        selectedRoute;
+
+      $("availabilitySummary").textContent =
+        `${trips.length} active taxi${trips.length === 1 ? "" : "s"} on ${route.origin} → ${route.destination}`;
+
+      if (!trips.length) {
+        $("taxiList").innerHTML = `
+          <div class="empty">
+            No active taxis are currently showing.
+            You can still signal your travel demand below.
+          </div>
+        `;
+
+        return;
+      }
+
+      $("taxiList").innerHTML =
+        trips.map(trip => {
+          const seats =
+            Number(trip.seats_remaining ?? 0);
+
+          const status =
+            String(trip.status || "")
+              .toLowerCase();
+
+          return `
+            <div class="taxi">
+              <div class="taxi-header">
+                <div class="taxi-registration">
+                  🚕 ${
+                    escapeHtml(
+                      trip.vehicle_registration_number ||
+                      "Taxi"
+                    )
+                  }
+                </div>
+
+                <div class="status">
+                  ${escapeHtml(
+                    trip.status
+                  )}
+                </div>
+              </div>
+
+              <div class="taxi-details">
+                <div>
+                  Operator:
+                  <strong>
+                    ${escapeHtml(
+                      trip.operator_name ||
+                      "Operator"
+                    )}
+                  </strong>
+                </div>
+
+                <div>
+                  Seats available:
+                  <strong>${seats}</strong>
+                </div>
+
+                <div>
+                  Capacity:
+                  <strong>
+                    ${Number(trip.capacity || 0)}
+                  </strong>
+                </div>
+
+                <div>
+                  Passengers:
+                  <strong>
+                    ${Number(
+                      trip.passengers_onboard || 0
+                    )}
+                  </strong>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join("");
+    }
+
+    function renderJourneyPoints() {
+      const originSelect =
+        $("originPoint");
+
+      const destinationSelect =
+        $("destinationPoint");
+
+      const points =
+        (availability?.pickupPoints || [])
+          .filter(point => point.active)
+          .sort(
+            (a, b) =>
+              Number(a.sequence ?? 0) -
+              Number(b.sequence ?? 0)
+          );
+
+      originSelect.innerHTML =
+        '<option value="">Choose your starting point</option>' +
+        points.map(point => `
+          <option value="${escapeHtml(point.id)}">
+            ${escapeHtml(point.name)}
+          </option>
+        `).join("");
+
+      destinationSelect.innerHTML =
+        '<option value="">Choose your destination</option>' +
+        points.map(point => `
+          <option value="${escapeHtml(point.id)}">
+            ${escapeHtml(point.name)}
+          </option>
+        `).join("");
+
+      if (points.length >= 2) {
+        originPointId = points[0].id;
+        destinationPointId = points[points.length - 1].id;
+
+        originSelect.value =
+          originPointId;
+
+        destinationSelect.value =
+          destinationPointId;
+      } else {
+        originPointId = null;
+        destinationPointId = null;
+      }
+
+      originSelect.onchange = () => {
+        originPointId =
+          originSelect.value || null;
+
+        if (
+          destinationSelect.value ===
+          originSelect.value
+        ) {
+          destinationPointId = null;
+          destinationSelect.value = "";
+        }
+
+        updateJourneyNote();
+      };
+
+      destinationSelect.onchange = () => {
+        destinationPointId =
+          destinationSelect.value || null;
+
+        if (
+          destinationSelect.value ===
+          originSelect.value
+        ) {
+          destinationPointId = null;
+          destinationSelect.value = "";
+
+          showRequestStatus(
+            "Your destination must be different from your starting point.",
+            "danger"
+          );
+        }
+
+        updateJourneyNote();
+      };
+
+      updateJourneyNote();
+    }
+
+    function updateJourneyNote() {
+      const origin =
+        originPointId
+          ? (availability?.pickupPoints || [])
+              .find(point => point.id === originPointId)
+          : null;
+
+      const destination =
+        destinationPointId
+          ? (availability?.pickupPoints || [])
+              .find(point => point.id === destinationPointId)
+          : null;
+
+      if (origin && destination) {
+        $("journeyNote").textContent =
+          `Journey: ${origin.name} → ${destination.name}. ` +
+          "Your pickup location is separate from your journey.";
+      } else {
+        $("journeyNote").textContent =
+          "Select your FROM and TO points. Your pickup location is separate and can be a rank, another pickup point, your GPS location, or a description.";
+      }
+    }
+
+    function renderRequestModes() {
+      const modeContainer =
+        $("modeOptions");
+
+      const serviceMode =
+        selectedRoute.service_mode;
+
+      let modes = [];
+
+      if (
+        serviceMode ===
+        "RANK_DEPARTURE"
+      ) {
+        modes = [
+          {
+            value: "RANK",
+            title: "Board at the rank",
+            description:
+              "I intend to board from an official rank pickup point."
+          },
+          {
+            value: "ALONG_ROUTE",
+            title: "I am along the route",
+            description:
+              "I am somewhere along the route and want my demand recorded."
+          }
+        ];
+      } else if (
+        serviceMode ===
+        "COLLECTION"
+      ) {
+        modes = [
+          {
+            value: "COLLECTION",
+            title: "Request collection",
+            description:
+              "I want an organised collection from a pickup point."
+          },
+          {
+            value: "ALONG_ROUTE",
+            title: "I am along the route",
+            description:
+              "I want to signal demand from somewhere along the route."
+          }
+        ];
+      } else {
+        modes = [
+          {
+            value: "RANK",
+            title: "Board at the rank",
+            description:
+              "I intend to board from an official rank."
+          },
+          {
+            value: "COLLECTION",
+            title: "Request collection",
+            description:
+              "I want an organised collection."
+          },
+          {
+            value: "ALONG_ROUTE",
+            title: "I am along the route",
+            description:
+              "I am somewhere along the route."
+          }
+        ];
+      }
+
+      modeContainer.innerHTML =
+        modes.map(mode => `
+          <label class="mode-option">
+            <input
+              type="radio"
+              name="requestMode"
+              value="${mode.value}"
+              onchange="setRequestMode(this.value)"
+            >
+
+            <span>
+              <span class="mode-title">
+                ${escapeHtml(mode.title)}
+              </span>
+
+              <span class="mode-description">
+                ${escapeHtml(mode.description)}
+              </span>
+            </span>
+          </label>
+        `).join("");
+
+      $("serviceModeText").textContent =
+        `Service mode: ${formatServiceMode(serviceMode)}`;
+    }
+
+    function setRequestMode(mode) {
+      requestMode = mode;
+
+      document
+        .querySelectorAll(
+          'input[name="requestMode"]'
+        )
+        .forEach(input => {
+          input.checked =
+            input.value === mode;
+        });
+
+      renderJourneyPoints();
+      renderPickupPoints();
+
+      const isRank =
+        mode === "RANK";
+
+      $("pickupPointLabel").textContent =
+        isRank
+          ? "Rank pickup point"
+          : "Pickup point (optional)";
+
+      $("pickupPointNote").textContent =
+        isRank
+          ? "Select the rank where you intend to board."
+          : "You can choose a pickup point, use GPS, or describe your location.";
+    }
+
+    function renderPickupPoints() {
+      const select =
+        $("pickupPoint");
+
+      const points =
+        availability?.pickupPoints || [];
+
+      let allowed =
+        points.filter(point => {
+          if (!point.active) {
+            return false;
+          }
+
+          if (requestMode === "RANK") {
+            return point.point_type === "RANK";
+          }
+
+          if (requestMode === "COLLECTION") {
+            return point.point_type !== "RANK";
+          }
+
+          return true;
+        });
+
+      select.innerHTML =
+        '<option value="">Choose a pickup point</option>' +
+        allowed.map(point => `
+          <option value="${escapeHtml(point.id)}">
+            ${escapeHtml(point.name)}
+            ${point.address
+              ? " — " + escapeHtml(point.address)
+              : ""}
+          </option>
+        `).join("");
+
+      if (requestMode === "RANK") {
+        const rank =
+          allowed.find(
+            point =>
+              point.point_type === "RANK"
+          );
+
+        if (rank) {
+          select.value = rank.id;
+        }
+      }
+    }
+
+    function adjustGroup(delta) {
+      groupSize =
+        Math.max(
+          1,
+          Math.min(
+            10,
+            groupSize + delta
+          )
+        );
+
+      $("groupSize").textContent =
+        groupSize;
+    }
+
+    function resetLocation() {
+      latitude = null;
+      longitude = null;
+
+      $("coords").textContent = "";
+      hide("coords");
+    }
+
+    function clearLocation() {
+      resetLocation();
+    }
+
+    function useCurrentLocation() {
+      if (
+        !navigator.geolocation
+      ) {
+        showRequestStatus(
+          "GPS is not available in this browser. You can describe your location instead.",
+          "danger"
+        );
+
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        position => {
+          latitude =
+            Number(
+              position.coords.latitude
+            );
+
+          longitude =
+            Number(
+              position.coords.longitude
+            );
+
+          $("coords").textContent =
+            `Location captured: ${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+
+          show("coords");
+
+          showRequestStatus(
+            "Your current location has been added to this request.",
+            "success"
+          );
+        },
+
+        error => {
+          console.warn(
+            "Geolocation failed:",
+            error
+          );
+
+          showRequestStatus(
+            "We could not get your location. You can continue by choosing a pickup point or describing your location.",
+            "info"
+          );
+        },
+
+        {
+          enableHighAccuracy: false,
+          timeout: 10000,
+          maximumAge: 300000
+        }
+      );
+    }
+
+    function getRequestLocation() {
+      const pickupPointId =
+        $("pickupPoint").value.trim();
+
+      const pickupDescription =
+        $("pickupDescription")
+          .value
+          .trim();
+
+      return {
+        pickupPointId:
+          pickupPointId || undefined,
+
+        pickupDescription:
+          pickupDescription || undefined,
+
+        latitude:
+          latitude !== null
+            ? latitude
+            : undefined,
+
+        longitude:
+          longitude !== null
+            ? longitude
+            : undefined
+      };
+    }
+
+    function validateRequestLocation(
+      location,
+      mode
+    ) {
+      if (
+        mode === "RANK" &&
+        !location.pickupPointId
+      ) {
+        return "Please select the rank where you intend to board.";
+      }
+
+      if (
+        location.latitude !== undefined &&
+        location.longitude !== undefined
+      ) {
+        return null;
+      }
+
+      if (
+        location.pickupPointId
+      ) {
+        return null;
+      }
+
+      if (
+        location.pickupDescription
+      ) {
+        return null;
+      }
+
+      return mode === "RANK"
+        ? "Please select a rank pickup point."
+        : "Please choose a pickup point, use your location, or describe where you are.";
+    }
+
+    function validateJourney() {
+      if (!originPointId) {
+        return "Please choose where you are travelling from.";
+      }
+
+      if (!destinationPointId) {
+        return "Please choose where you are travelling to.";
+      }
+
+      if (
+        originPointId ===
+        destinationPointId
+      ) {
+        return "Your destination must be different from your starting point.";
+      }
+
+      const points =
+        availability?.pickupPoints || [];
+
+      const originExists =
+        points.some(
+          point =>
+            point.id === originPointId &&
+            point.active
+        );
+
+      const destinationExists =
+        points.some(
+          point =>
+            point.id === destinationPointId &&
+            point.active
+        );
+
+      if (!originExists) {
+        return "The selected starting point is not valid for this route.";
+      }
+
+      if (!destinationExists) {
+        return "The selected destination is not valid for this route.";
+      }
+
+      return null;
+    }
+
+    async function sendWaiting() {
+      if (!selectedRoute) {
+        return;
+      }
+
+      if (!requestMode) {
+        showRequestStatus(
+          "Please choose how you want to travel.",
+          "danger"
+        );
+
+        return;
+      }
+
+      const journeyError =
+        validateJourney();
+
+      if (journeyError) {
+        showRequestStatus(
+          journeyError,
+          "danger"
+        );
+
+        return;
+      }
+
+      const location =
+        getRequestLocation();
+
+      const locationError =
+        validateRequestLocation(
+          location,
+          requestMode
+        );
+
+      if (locationError) {
+        showRequestStatus(
+          locationError,
+          "danger"
+        );
+
+        return;
+      }
+
+      setRequestButtonsDisabled(
+        true
+      );
+
+      try {
+        const body = {
+          routeId:
+            selectedRoute.id,
+
+          originPointId,
+
+          destinationPointId,
+
+          groupSize,
+
+          requestMode,
+
+          ...location
+        };
+
+        const result =
+          await api(
+            "/passenger/waiting",
+            {
+              method: "POST",
+              body: JSON.stringify(
+                body
+              )
+            }
+          );
+
+        waitingId =
+          result.waiting?.id ||
+          result.waitingId ||
+          null;
+
+        showRequestStatus(
+          "Your waiting request has been sent successfully.",
+          "success"
+        );
+
+        show("cancelBtn");
+
+      } catch (error) {
+        showRequestStatus(
+          error.message,
+          "danger"
+        );
+
+      } finally {
+        setRequestButtonsDisabled(
+          false
+        );
+      }
+    }
+
+    async function sendDemand() {
+      if (!selectedRoute) {
+        return;
+      }
+
+      const mode =
+        requestMode || "ALONG_ROUTE";
+
+      const journeyError =
+        validateJourney();
+
+      if (journeyError) {
+        showRequestStatus(
+          journeyError,
+          "danger"
+        );
+
+        return;
+      }
+
+      if (mode === "RANK") {
+        showRequestStatus(
+          "Use the waiting request for a rank boarding request.",
+          "info"
+        );
+
+        return;
+      }
+
+      const location =
+        getRequestLocation();
+
+      const locationError =
+        validateRequestLocation(
+          location,
+          "ALONG_ROUTE"
+        );
+
+      if (locationError) {
+        showRequestStatus(
+          locationError,
+          "danger"
+        );
+
+        return;
+      }
+
+      setRequestButtonsDisabled(
+        true
+      );
+
+      try {
+        const body = {
+          routeId:
+            selectedRoute.id,
+
+          originPointId,
+
+          destinationPointId,
+
+          groupSize,
+
+          requestMode:
+            mode === "COLLECTION"
+              ? "COLLECTION"
+              : "ALONG_ROUTE",
+
+          ...location
+        };
+
+        await api(
+          "/passenger/demand",
+          {
+            method: "POST",
+            body: JSON.stringify(
+              body
+            )
+          }
+        );
+
+        showRequestStatus(
+          "Your route demand has been recorded.",
+          "success"
+        );
+
+      } catch (error) {
+        showRequestStatus(
+          error.message,
+          "danger"
+        );
+
+      } finally {
+        setRequestButtonsDisabled(
+          false
+        );
+      }
+    }
+
+    async function cancelWaiting() {
+      if (!waitingId) {
+        return;
+      }
+
+      setRequestButtonsDisabled(
+        true
+      );
+
+      try {
+        await api(
+          "/passenger/cancel-waiting",
+          {
+            method: "POST",
+            body: JSON.stringify({
+              waitingId
+            })
+          }
+        );
+
+        waitingId = null;
+
+        hide("cancelBtn");
+
+        showRequestStatus(
+          "Your waiting request has been cancelled.",
+          "info"
+        );
+
+      } catch (error) {
+        showRequestStatus(
+          error.message,
+          "danger"
+        );
+
+      } finally {
+        setRequestButtonsDisabled(
+          false
+        );
+      }
+    }
+
+    function setRequestButtonsDisabled(
+      disabled
+    ) {
+      $("waitBtn").disabled =
+        disabled;
+
+      $("demandBtn").disabled =
+        disabled;
+
+      $("cancelBtn").disabled =
+        disabled;
+    }
+
+    function showRequestStatus(
+      message,
+      type
+    ) {
+      const className =
+        type === "success"
+          ? "alert-success"
+          : type === "danger"
+            ? "alert-danger"
+            : "alert-info";
+
+      $("requestStatus").innerHTML = `
+        <div class="alert ${className}">
+          ${escapeHtml(message)}
+        </div>
+      `;
+    }
+
+    loadRoutes();
+  </script>
 </body>
 </html>
