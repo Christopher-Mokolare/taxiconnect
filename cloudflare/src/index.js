@@ -5314,6 +5314,32 @@ async function handleApi(request, env) {
     return await adminSuperadminUsers(env, url);
   }
 
+  if (path === "/api/admin/superadmin/user/provision" && method === "POST") {
+    const auth = await requireRole(request, env, ["superadmin"]);
+    return await adminProvisionSystemUser(env, auth, await readJson(request));
+  }
+
+  if (path.match(/^\/api\/admin\/superadmin\/route\/([^/]+)\/points$/) && method === "GET") {
+    const auth = await requireRole(request, env, ["superadmin"]);
+    const routeId = path.match(/^\/api\/admin\/superadmin\/route\/([^/]+)\/points$/)[1];
+    return await superadminRoutePoints(env, auth, routeId);
+  }
+
+  if (path === "/api/admin/superadmin/route/point" && method === "POST") {
+    const auth = await requireRole(request, env, ["superadmin"]);
+    return await superadminAddRoutePoint(env, auth, await readJson(request));
+  }
+
+  if (path === "/api/admin/superadmin/route/point/status" && method === "POST") {
+    const auth = await requireRole(request, env, ["superadmin"]);
+    return await superadminSetRoutePointStatus(env, auth, await readJson(request));
+  }
+
+  if (path === "/api/admin/superadmin/operator/revoke-route" && method === "POST") {
+    const auth = await requireRole(request, env, ["superadmin"]);
+    return await superadminRevokeOperatorRoute(env, auth, await readJson(request));
+  }
+
   if (path === "/api/admin/superadmin/operator/status" && method === "POST") {
     const auth = await requireRole(request, env, ["superadmin"]);
     return await adminSetOperatorStatus(env, auth, await readJson(request));
