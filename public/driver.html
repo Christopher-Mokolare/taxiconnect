@@ -360,6 +360,35 @@ button:not(.btn):not(.btn-link):not(.cbtn):hover{transform:translateY(-1px);box-
 
 const API_BASE = '/api';
 
+let dispatchSocket = null;
+let dispatchReconnectTimer = null;
+
+function connectCloudflareDispatch() {
+  try {
+    if (dispatchSocket && [WebSocket.OPEN, WebSocket.CONNECTING].includes(dispatchSocket.readyState)) return;
+    const protocol = location.protocol === "https:" ? "wss:" : "ws:";
+    dispatchSocket = new WebSocket(protocol + "//" + location.host + "/ws");
+    dispatchSocket.onmessage = event => {
+      try {
+        const message = JSON.parse(event.data || "{}");
+        if (message.type === "route_summon" && (!selectedRoute || message.routeId === selectedRoute.id)) {
+          showSummon(Number(message.passengerCount || 0), selectedRoute?.name || "your route");
+        }
+      } catch {}
+    };
+    dispatchSocket.onclose = () => {
+      clearTimeout(dispatchReconnectTimer);
+      dispatchReconnectTimer = setTimeout(connectCloudflareDispatch, 3000);
+    };
+    dispatchSocket.onerror = () => dispatchSocket.close();
+  } catch {
+    clearTimeout(dispatchReconnectTimer);
+    dispatchReconnectTimer = setTimeout(connectCloudflareDispatch, 5000);
+  }
+}
+
+
+
 let authToken = sessionStorage.getItem('tc_cf_token') || '';
 let driverUser = null;
 
