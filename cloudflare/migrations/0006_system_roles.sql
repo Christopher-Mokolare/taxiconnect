@@ -1,14 +1,11 @@
--- Add system-level authorization roles without changing the
--- legacy operational users.role constraint.
---
--- users.role:
---   passenger
---   driver
---   conductor
---
--- users.system_role:
---   operator_admin
---   superadmin
+-- Add system-level authorization roles and the user contact/session fields
+-- required by the current Worker control plane.
+
+ALTER TABLE users
+ADD COLUMN phone TEXT;
+
+ALTER TABLE users
+ADD COLUMN last_seen_at INTEGER;
 
 ALTER TABLE users
 ADD COLUMN system_role TEXT
