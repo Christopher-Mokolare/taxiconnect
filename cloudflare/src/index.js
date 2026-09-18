@@ -5714,9 +5714,47 @@ export default {
 
       console.error(error);
 
+      try {
+        const url = new URL(request.url);
+        const correlationId =
+          request.headers.get("X-Correlation-Id") ||
+          id("corr");
+
+        await env.DB.prepare(`
+          INSERT INTO system_incidents
+            (
+              id,
+              severity,
+              status,
+              source,
+              message,
+              correlation_id,
+              details_json,
+              created_at
+            )
+          VALUES (?, 'ERROR', 'OPEN', ?, ?, ?, ?, ?)
+        `).bind(
+          id("incident"),
+          url.pathname,
+          String(error?.message || "Unhandled Worker exception").slice(0, 1000),
+          correlationId,
+          JSON.stringify({
+            method: request.method,
+            pathname: url.pathname
+          }),
+          now()
+        ).run();
+      } catch (incidentError) {
+        console.error("Failed to persist system incident.", incidentError);
+      }
+
       return fail(
         "Internal server error.",
-        500
+        500,
+        {
+          correlationId:
+            request.headers.get("X-Correlation-Id") || null
+        }
       );
     }
   }
