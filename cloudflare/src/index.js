@@ -4892,6 +4892,69 @@ async function platformHealth(env) {
   });
 }
 
+async function superadminCreateOperatorAdmin(env, auth, body) {
+  const operatorId = requireString(body.operatorId, "operatorId");
+  const name = requireString(body.name, "name");
+  const phone = normalizePhone(body.phone);
+  const operator = await env.DB.prepare("SELECT id, name FROM operators WHERE id=? AND active=1 LIMIT 1").bind(operatorId).first();
+  if (!operator) throw new HttpError("Operator not found.", 404);
+
+  const userId = id("operator_admin");
+  const timestamp = now();
+  await env.DB.prepare(`
+    INSERT INTO users (id,name,role,system_role,active,created_at,last_seen_at)
+    VALUES (?,?,'passenger','operator_admin',1,?,?)
+  `).bind(userId,name,timestamp,timestamp).run();
+  if (phone) await env.DB.prepare("UPDATE users SET phone=? WHERE id=?").bind(phone,userId).run();
+
+  const membershipId = id("membership");
+  await env.DB.prepare(`
+    INSERT INTO operator_memberships
+      (id,operator_id,user_id,membership_role,active,created_at,updated_at)
+    VALUES (?, ?, ?, 'operator_admin', 1, ?, ?)
+  `).bind(membershipId,operatorId,userId,timestamp,timestamp).run();
+
+  await writeAudit(env,{actorUserId:auth.user.id,operatorId,action:"OPERATOR_ADMIN_CREATED",entityType:"user",entityId:userId,details:{name,phone}});
+  return ok({user:{id:userId,name,role:"operator_admin",phone,active:1},membershipId});
+}
+
+async function operatorAssignDriverToTaxi(env, auth, body) {
+  const operatorId=requireString(body.operatorId,"operatorId");
+  const taxiId=requireString(body.taxiId,"taxiId");
+  const driverId=requireString(body.driverId,"driverId");
+  await requireSpecificOperatorMembership(env,auth.user.id,operatorId,["operator_admin"]);
+  await getTaxiForOperator(env,operatorId,taxiId);
+  const driver=await env.DB.prepare(`
+    SELECT u.id,u.name FROM users u
+    JOIN operator_memberships om ON om.user_id=u.id
+    WHERE u.id=? AND om.operator_id=? AND om.membership_role='driver'
+      AND om.active=1 AND u.active=1 LIMIT 1
+  `).bind(driverId,operatorId).first();
+  if(!driver) throw new HttpError("Driver is not an active member of this operator.",403);
+
+  await env.DB.prepare("UPDATE taxi_driver_assignments SET active=0, ended_at=? WHERE taxi_id=? AND active=1")
+    .bind(now(),taxiId).run();
+  await env.DB.prepare("UPDATE taxis SET driver_id=?,driver_name=?,last_updated=? WHERE id=?")
+    .bind(driverId,driver.name,now(),taxiId).run();
+  await env.DB.prepare(`
+    INSERT INTO taxi_driver_assignments (id,taxi_id,driver_id,active,assigned_at)
+    VALUES (?,?,?,1,?)
+  `).bind(id("assignment"),taxiId,driverId,now()).run();
+
+  await writeAudit(env,{actorUserId:auth.user.id,operatorId,action:"DRIVER_ASSIGNED_TO_TAXI",entityType:"taxi",entityId:taxiId,details:{driverId,driverName:driver.name}});
+  return ok({taxiId,driverId,driverName:driver.name});
+}
+
+async function operatorAuthorizeTaxiRouteFromAdmin(env, auth, body) {
+  const operatorId=requireString(body.operatorId,"operatorId");
+  const taxiId=requireString(body.taxiId,"taxiId");
+  const routeId=requireString(body.routeId,"routeId");
+  await requireSpecificOperatorMembership(env,auth.user.id,operatorId,["operator_admin"]);
+  await getTaxiForOperator(env,operatorId,taxiId);
+  await getAuthorizedOperatorRoute(env,operatorId,routeId);
+  return await operatorAuthorizeTaxiRoute(env,auth,body);
+}
+
 async function handleApi(request, env) {
   const url = new URL(request.url);
   const path = url.pathname;
@@ -4972,6 +5035,21 @@ async function handleApi(request, env) {
       loggedOut: true,
       cookie: `${SESSION_COOKIE}=; Max-Age=0; Path=/; HttpOnly; Secure; SameSite=Lax`
     });
+  }
+
+  if (path === "/api/superadmin/operator-admin/create" && method === "POST") {
+    const auth = await requireRole(request, env, ["superadmin"]);
+    return await superadminCreateOperatorAdmin(env, auth, await readJson(request));
+  }
+
+  if (path === "/api/operator/taxi/assign-driver" && method === "POST") {
+    const auth = await requireRole(request, env, ["operator_admin"]);
+    return await operatorAssignDriverToTaxi(env, auth, await readJson(request));
+  }
+
+  if (path === "/api/operator/taxi/authorize-route" && method === "POST") {
+    const auth = await requireRole(request, env, ["operator_admin"]);
+    return await operatorAuthorizeTaxiRouteFromAdmin(env, auth, await readJson(request));
   }
 
   if (path === "/api/superadmin/dashboard" && method === "GET") {
