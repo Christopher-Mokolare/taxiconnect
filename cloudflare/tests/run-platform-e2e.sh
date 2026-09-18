@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/usr/bin/env bash
 set -euo pipefail
 BASE="${BASE:-http://127.0.0.1:8787}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
