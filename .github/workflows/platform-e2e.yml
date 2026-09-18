@@ -32,7 +32,7 @@ jobs:
       - name: Validate worker syntax
         run: node --check src/index.js
       - name: Apply local migrations
-        run: npx wrangler d1 migrations apply taxiconnect --local --yes
+        run: npx wrangler d1 migrations apply taxiconnect --local
       - name: Seed isolated E2E database
         run: npx wrangler d1 execute taxiconnect --local --file=tests/seed-platform-e2e.sql --yes
       - name: Start Worker
@@ -57,4 +57,4 @@ jobs:
         run: node tests/run-realtime-e2e.mjs
       - name: Worker logs
         if: always()
-        run: cat /tmp/taxiconnect-worker.log
+        run: if [ -f /tmp/taxiconnect-worker.log ]; then cat /tmp/taxiconnect-worker.log; fi
