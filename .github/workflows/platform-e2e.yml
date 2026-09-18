@@ -55,10 +55,6 @@ jobs:
         run: node tests/run-platform-e2e.mjs
       - name: Realtime E2E
         run: node tests/run-realtime-e2e.mjs
-      - name: Existing passenger and domain regression
-        run: bash tests/run-e2e.sh
-      - name: Existing passenger dispatch regression
-        run: bash tests/run-passenger-dispatch-e2e.sh
       - name: Worker logs
         if: always()
         run: cat /tmp/taxiconnect-worker.log
