@@ -586,6 +586,45 @@ button:not(.btn):not(.btn-link):not(.cbtn):hover{transform:translateY(-1px);box-
 
 const API_BASE = "/api";
 
+let dispatchSocket = null;
+let dispatchReconnectTimer = null;
+let dispatchRefreshTimer = null;
+
+function connectCloudflareDispatch() {
+  try {
+    if (dispatchSocket && [WebSocket.OPEN, WebSocket.CONNECTING].includes(dispatchSocket.readyState)) return;
+    const protocol = location.protocol === "https:" ? "wss:" : "ws:";
+    dispatchSocket = new WebSocket(protocol + "//" + location.host + "/ws");
+    dispatchSocket.onmessage = event => {
+      try {
+        const message = JSON.parse(event.data || "{}");
+        const relevant = [
+          "passenger_waiting",
+          "passenger_waiting_cancelled",
+          "route_demand",
+          "trip_updated",
+          "line_updated",
+          "route_summon"
+        ].includes(message.type);
+        if (!relevant) return;
+        if (selectedRouteId && message.routeId && message.routeId !== selectedRouteId) return;
+        clearTimeout(dispatchRefreshTimer);
+        dispatchRefreshTimer = setTimeout(() => refreshAll(), 300);
+      } catch {}
+    };
+    dispatchSocket.onclose = () => {
+      clearTimeout(dispatchReconnectTimer);
+      dispatchReconnectTimer = setTimeout(connectCloudflareDispatch, 3000);
+    };
+    dispatchSocket.onerror = () => dispatchSocket.close();
+  } catch {
+    clearTimeout(dispatchReconnectTimer);
+    dispatchReconnectTimer = setTimeout(connectCloudflareDispatch, 5000);
+  }
+}
+
+
+
 let currentUser = null;
 let sessionToken = null;
 let memberships = [];
@@ -719,6 +758,7 @@ async function pinLogin() {
     renderOperators();
     await loadRoutes();
     await refreshAll();
+    connectCloudflareDispatch();
 
   } catch (err) {
     showMessage("authError", err.message || "Login failed.");
