@@ -1,0 +1,28 @@
+name: TaxiConnect Platform E2E
+
+on:
+  pull_request:
+  push:
+    branches:
+      - feature/full-platform-control-plane
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cloudflare
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - run: npm install
+
+      - name: Syntax check
+        run: node --check src/index.js
+
+      - name: Platform E2E
+        run: chmod +x tests/run-platform-e2e.sh && ./tests/run-platform-e2e.sh
