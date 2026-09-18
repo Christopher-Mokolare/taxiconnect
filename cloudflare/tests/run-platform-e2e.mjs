@@ -82,12 +82,12 @@ await req("conductor sees passenger demand","GET","/api/conductor/demand?operato
 
 await req("driver session","GET","/api/driver/session",{token:DRV});
 await req("driver routes","GET","/api/driver/routes",{token:DRV});
-await req("driver go live","POST","/api/driver/go-live",{token:DRV,body:{taxiId:"e2e-taxi",routeId:"e2e-route",originPointId:"e2e-origin",destinationPointId:"e2e-destination",passengersOnboard:0}});
-await req("driver passenger update","POST","/api/driver/passengers",{token:DRV,body:{taxiId:"e2e-taxi",passengersOnboard:2}});
-await req("driver full","POST","/api/driver/passengers",{token:DRV,body:{taxiId:"e2e-taxi",passengersOnboard:15}});
-await req("driver departed","POST","/api/driver/status",{token:DRV,body:{taxiId:"e2e-taxi",status:"DEPARTED"}});
-await req("driver invalid departed to loading rejected","POST","/api/driver/status",{token:DRV,expected:409,body:{taxiId:"e2e-taxi",status:"LOADING"}});
-await req("driver arrived","POST","/api/driver/status",{token:DRV,body:{taxiId:"e2e-taxi",status:"ARRIVED"}});
+const live=await req("driver go live","POST","/api/driver/go-live",{token:DRV,body:{taxiId:"e2e-taxi",routeId:"e2e-route",originPointId:"e2e-origin",destinationPointId:"e2e-destination",passengersOnboard:0}});
+await req("driver passenger update","POST","/api/driver/passengers",{token:DRV,body:{tripId:live.trip.id,passengersOnboard:2}});
+await req("driver full","POST","/api/driver/passengers",{token:DRV,body:{tripId:live.trip.id,passengersOnboard:15}});
+await req("driver departed","POST","/api/driver/status",{token:DRV,body:{tripId:live.trip.id,status:"DEPARTED"}});
+await req("driver invalid departed to loading rejected","POST","/api/driver/status",{token:DRV,expected:409,body:{tripId:live.trip.id,status:"LOADING"}});
+await req("driver arrived","POST","/api/driver/status",{token:DRV,body:{tripId:live.trip.id,status:"ARRIVED"}});
 await req("operator sees completed trip","GET","/api/operator/overview",{token:OP});
 
 await req("conductor removes taxi","POST","/api/conductor/line/remove",{token:COND,body:{lineEntryId:(await req("line read","GET","/api/conductor/line?lineSessionId="+encodeURIComponent(lineId),{token:COND})).line.entries.find(e=>e.taxi_id===taxi2.taxi.id).id}});
