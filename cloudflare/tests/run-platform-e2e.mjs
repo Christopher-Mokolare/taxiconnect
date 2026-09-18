@@ -97,8 +97,9 @@ const wsUrl=base.replace(/^http/,"ws")+"/ws";
 const ws=new WebSocket(wsUrl);
 const connected=await new Promise((resolve,reject)=>{const t=setTimeout(()=>reject(new Error("ws connect timeout")),5000);ws.addEventListener("message",e=>{clearTimeout(t);resolve(JSON.parse(e.data))},{once:true});ws.addEventListener("error",()=>{clearTimeout(t);reject(new Error("ws error"))},{once:true})});
 if(connected.type!=="connected") throw new Error("bad ws connected event");
+const eventPromise=new Promise((resolve,reject)=>{const t=setTimeout(()=>reject(new Error("ws broadcast timeout")),5000);ws.addEventListener("message",e=>{clearTimeout(t);resolve(JSON.parse(e.data))},{once:true})});
 await req("broadcast trigger","POST","/api/conductor/summon",{token:COND,body:{operatorId:"e2e-operator",routeId:"e2e-route",requestType:"ROUTE_DEMAND",passengerCount:1}});
-const event=await new Promise((resolve,reject)=>{const t=setTimeout(()=>reject(new Error("ws broadcast timeout")),5000);ws.addEventListener("message",e=>{clearTimeout(t);resolve(JSON.parse(e.data))},{once:true})});
+const event=await eventPromise;
 if(!event.type) throw new Error("broadcast missing type");
 console.log("PASS | websocket realtime | "+event.type);pass++;total++;ws.close();
 
