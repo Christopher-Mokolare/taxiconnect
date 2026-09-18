@@ -1170,9 +1170,11 @@ async function startDriverTrip(env, auth, body) {
         );
 
   const initialStatus =
-    route.service_mode === "COLLECTION"
-      ? "COLLECTING"
-      : "LOADING";
+    requestedPassengers >= taxi.capacity
+      ? "FULL"
+      : route.service_mode === "COLLECTION"
+        ? "COLLECTING"
+        : "LOADING";
 
   const timestamp = now();
   const tripId = id("trip");
