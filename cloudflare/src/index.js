@@ -4413,6 +4413,196 @@ async function adminResolveIncident(env,auth,body){
   return ok({incidentId,status:"RESOLVED"});
 }
 
+async function adminProvisionSystemUser(env, auth, body) {
+  const role = requireString(body.role, "role");
+  if (!["operator_admin","superadmin"].includes(role)) {
+    throw new HttpError("Invalid system role.", 400);
+  }
+
+  const name = requireString(body.name, "name");
+  const phone = normalizePhone(body.phone);
+
+  const duplicate = await env.DB.prepare(`
+    SELECT id FROM users
+    WHERE lower(name) = lower(?)
+      AND system_role = ?
+      AND active = 1
+    LIMIT 1
+  `).bind(name, role).first();
+
+  if (duplicate) {
+    throw new HttpError("An active system user with this name and role already exists.", 409);
+  }
+
+  const timestamp = now();
+  const userId = id(role);
+
+  await env.DB.prepare(`
+    INSERT INTO users
+      (id,name,role,system_role,active,phone,created_at,last_seen_at)
+    VALUES (?,?,'passenger',?,1,?,?,?)
+  `).bind(
+    userId,
+    name,
+    role,
+    phone,
+    timestamp,
+    timestamp
+  ).run();
+
+  await writeAudit(env, {
+    actorUserId: auth.user.id,
+    action: "SYSTEM_USER_PROVISIONED",
+    entityType: "user",
+    entityId: userId,
+    details: { name, role }
+  });
+
+  return ok({
+    user: {
+      id: userId,
+      name,
+      role: "passenger",
+      systemRole: role,
+      phone,
+      active: 1
+    }
+  });
+}
+
+async function superadminRoutePoints(env, auth, routeId) {
+  await requireRole(
+    new Request("https://internal/", {
+      headers: {
+        Authorization: `Bearer ${await createSession(env, auth.user)}`
+      }
+    }),
+    env,
+    ["superadmin"]
+  );
+
+  const route = await getRoute(env, routeId);
+  return ok({ route });
+}
+
+async function superadminAddRoutePoint(env, auth, body) {
+  const routeId = requireString(body.routeId, "routeId");
+  const name = requireString(body.name, "name");
+  const pointType = requireString(body.pointType, "pointType");
+
+  if (!["RANK","PICKUP","DROP_OFF"].includes(pointType)) {
+    throw new HttpError("Invalid pointType.", 400);
+  }
+
+  await getRoute(env, routeId);
+
+  const requestedSequence = body.sequence == null
+    ? null
+    : integer(body.sequence, "sequence", 0);
+
+  const maxRow = await env.DB.prepare(`
+    SELECT COALESCE(MAX(sequence), -1) AS max_sequence
+    FROM route_pickup_points
+    WHERE route_id = ?
+  `).bind(routeId).first();
+
+  const sequence = requestedSequence == null
+    ? Number(maxRow?.max_sequence ?? -1) + 1
+    : requestedSequence;
+
+  const timestamp = now();
+  const pointId = id("pickup");
+
+  await env.DB.prepare(`
+    INSERT INTO route_pickup_points
+      (id,route_id,name,point_type,sequence,latitude,longitude,address,active,created_at,updated_at)
+    VALUES (?,?,?,?,?,?,?,?,1,?,?)
+  `).bind(
+    pointId,
+    routeId,
+    name,
+    pointType,
+    sequence,
+    body.latitude == null ? null : Number(body.latitude),
+    body.longitude == null ? null : Number(body.longitude),
+    body.address ? String(body.address).trim() : null,
+    timestamp,
+    timestamp
+  ).run();
+
+  await writeAudit(env,{
+    actorUserId:auth.user.id,
+    action:"ROUTE_POINT_CREATED",
+    entityType:"route_pickup_point",
+    entityId:pointId,
+    details:{routeId,name,pointType,sequence}
+  });
+
+  return ok({ point: { id:pointId,routeId,name,pointType,sequence,active:1 } });
+}
+
+async function superadminSetRoutePointStatus(env, auth, body) {
+  const pointId = requireString(body.pointId, "pointId");
+  const active = body.active ? 1 : 0;
+
+  const point = await env.DB.prepare(`
+    SELECT id,route_id,active
+    FROM route_pickup_points
+    WHERE id = ?
+    LIMIT 1
+  `).bind(pointId).first();
+
+  if (!point) throw new HttpError("Route point not found.",404);
+
+  await env.DB.prepare(`
+    UPDATE route_pickup_points
+    SET active = ?, updated_at = ?
+    WHERE id = ?
+  `).bind(active,now(),pointId).run();
+
+  await writeAudit(env,{
+    actorUserId:auth.user.id,
+    action:active ? "ROUTE_POINT_ACTIVATED" : "ROUTE_POINT_DEACTIVATED",
+    entityType:"route_pickup_point",
+    entityId:pointId,
+    details:{routeId:point.route_id,active}
+  });
+
+  return ok({pointId,active});
+}
+
+async function superadminRevokeOperatorRoute(env, auth, body) {
+  const operatorId = requireString(body.operatorId, "operatorId");
+  const routeId = requireString(body.routeId, "routeId");
+
+  const row = await env.DB.prepare(`
+    SELECT id,active
+    FROM operator_routes
+    WHERE operator_id = ?
+      AND route_id = ?
+    LIMIT 1
+  `).bind(operatorId,routeId).first();
+
+  if (!row) throw new HttpError("Operator route authorization not found.",404);
+
+  await env.DB.prepare(`
+    UPDATE operator_routes
+    SET active = 0, revoked_at = ?
+    WHERE id = ?
+  `).bind(now(),row.id).run();
+
+  await writeAudit(env,{
+    actorUserId:auth.user.id,
+    operatorId,
+    action:"OPERATOR_ROUTE_REVOKED",
+    entityType:"operator_route",
+    entityId:row.id,
+    details:{routeId}
+  });
+
+  return ok({operatorId,routeId,active:0});
+}
+
 async function authLogin(env, body) {
   const role = requireString(
     body.role,
