@@ -1306,10 +1306,13 @@ async function updateDriverPassengers(env, auth, body) {
     SELECT
       tr.*,
       t.operator_id,
-      t.vehicle_registration_number
+      t.vehicle_registration_number,
+      r.service_mode
     FROM trips tr
     JOIN taxis t
       ON t.id = tr.taxi_id
+    JOIN routes r
+      ON r.id = tr.route_id
     WHERE tr.id = ?
       AND tr.driver_id = ?
     LIMIT 1
@@ -1345,7 +1348,11 @@ async function updateDriverPassengers(env, auth, body) {
     passengers >= trip.capacity
       ? "FULL"
       : trip.status === "FULL"
-        ? "LOADING"
+        ? (
+            trip.service_mode === "COLLECTION"
+              ? "COLLECTING"
+              : "LOADING"
+          )
         : trip.status;
 
   const timestamp = now();
