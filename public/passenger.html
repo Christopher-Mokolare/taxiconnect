@@ -450,6 +450,23 @@ button:not(.btn):not(.btn-link):not(.cbtn):hover{transform:translateY(-1px);box-
 @media(prefers-reduced-motion:reduce){
   *,*:before,*:after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition:none!important}
 }
+</style><style id="taxiconnect-ux-passenger">
+.tc-hero{padding:26px 22px!important;color:#fff!important;background:linear-gradient(135deg,#111827,#312e81 58%,#635bff)!important;overflow:hidden;position:relative}
+.tc-hero:after{content:"";position:absolute;width:180px;height:180px;border-radius:50%;right:-55px;top:-65px;background:rgba(255,255,255,.10)}
+.tc-eyebrow{font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;opacity:.72}
+.tc-hero h2{font-size:27px!important;line-height:1.08;margin:7px 0!important;color:#fff!important;position:relative;z-index:1}
+.tc-hero p{margin:0;max-width:560px;color:rgba(255,255,255,.78);line-height:1.55;position:relative;z-index:1}
+.tc-steps{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin:14px 0 18px}
+.tc-step{font-size:11px;font-weight:800;text-align:center;color:#98a2b3;padding:8px 4px;border-bottom:2px solid #e4e7ec}
+.tc-step.active{color:#4338ca;border-bottom-color:#635bff}
+.tc-step.done{color:#12b76a;border-bottom-color:#12b76a}
+.tc-section-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:12px}
+.tc-kicker{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#667085}
+.tc-primary-copy{font-size:20px;font-weight:800;letter-spacing:-.02em;margin-top:3px}
+.tc-route-pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:7px 10px;background:#eef2ff;color:#4338ca;font-size:11px;font-weight:800}
+.tc-action-stack{position:sticky;bottom:10px;z-index:10;padding:8px;border-radius:18px;background:rgba(248,250,252,.84);backdrop-filter:blur(14px);box-shadow:0 12px 30px rgba(16,24,40,.12)}
+.tc-helper{padding:10px 12px;border-radius:12px;background:#f8fafc;border:1px solid #eaecf0;color:#667085;font-size:12px;line-height:1.5}
+@media(max-width:600px){.tc-hero h2{font-size:23px!important}.tc-steps{grid-template-columns:repeat(4,1fr)}.tc-step{font-size:10px}}
 </style></head>
 
 <body>
@@ -457,16 +474,26 @@ button:not(.btn):not(.btn-link):not(.cbtn):hover{transform:translateY(-1px);box-
 
     <header class="header">
       <div class="logo">🚕 TaxiConnect</div>
-      <div class="subtitle">
-        Find available taxis and signal your travel demand.
-      </div>
+      <div class="subtitle">Route availability · demand · daily taxi operations</div>
     </header>
+    <section class="card tc-hero">
+      <div class="tc-eyebrow">Passenger</div>
+      <h2>Find your route. Choose your journey. Get moving.</h2>
+      <p>See available taxis, choose exactly where you're travelling from and to, then tell us where you'll board.</p>
+    </section>
+    <nav class="tc-steps" aria-label="Journey progress">
+      <div class="tc-step active" id="stepRoute">1 · Route</div>
+      <div class="tc-step" id="stepJourney">2 · Journey</div>
+      <div class="tc-step" id="stepPickup">3 · Pickup</div>
+      <div class="tc-step" id="stepRequest">4 · Request</div>
+    </nav>
 
     <section class="card">
-      <h2>Choose your route</h2>
-      <div class="muted">
-        Routes are provided by TaxiConnect operators.
+      <div class="tc-section-head">
+        <div><div class="tc-kicker">Step 1</div><div class="tc-primary-copy">Where are you going?</div></div>
+        <span class="tc-route-pill">Live routes</span>
       </div>
+      <div class="muted">Choose a route served today. You can travel in either direction where the route supports it.</div>
 
       <div id="routeList" class="route-grid">
         <div class="loading">Loading routes...</div>
@@ -476,7 +503,10 @@ button:not(.btn):not(.btn-link):not(.cbtn):hover{transform:translateY(-1px);box-
     </section>
 
     <section id="availabilityCard" class="card hidden">
-      <h2>Available taxis</h2>
+      <div class="tc-section-head">
+        <div><div class="tc-kicker">Availability</div><div class="tc-primary-copy">Taxis on this route</div></div>
+        <span class="tc-route-pill">Live</span>
+      </div>
       <div id="availabilitySummary" class="muted"></div>
 
       <div id="taxiList">
@@ -485,7 +515,10 @@ button:not(.btn):not(.btn-link):not(.cbtn):hover{transform:translateY(-1px);box-
     </section>
 
     <section id="requestCard" class="card hidden">
-      <h2>Tell us where you're travelling from</h2>
+      <div class="tc-section-head">
+        <div><div class="tc-kicker">Steps 2–4</div><div class="tc-primary-copy">Plan your journey</div></div>
+        <span class="tc-route-pill" id="journeyPill">Journey</span>
+      </div>
       <div id="serviceModeText" class="muted"></div>
 
       <div id="modeSection">
@@ -514,9 +547,8 @@ button:not(.btn):not(.btn-link):not(.cbtn):hover{transform:translateY(-1px);box-
         <option value="">Choose your destination</option>
       </select>
 
-      <div id="journeyNote" class="small-note">
-        Select your FROM and TO points. Your pickup location is separate and
-        can be a rank, another pickup point, your GPS location, or a description.
+      <div id="journeyNote" class="tc-helper">
+        Select your FROM and TO points. Your pickup location is separate from your journey.
       </div>
 
       <label
@@ -577,6 +609,7 @@ button:not(.btn):not(.btn-link):not(.cbtn):hover{transform:translateY(-1px);box-
         </div>
       </div>
 
+      <div class="tc-action-stack">
       <button
         id="waitBtn"
         class="btn btn-primary"
@@ -605,6 +638,7 @@ button:not(.btn):not(.btn-link):not(.cbtn):hover{transform:translateY(-1px);box-
       </button>
 
       <div id="requestStatus"></div>
+      </div>
 
       <div class="small-note">
         Your location is optional. TaxiConnect does not require GPS
@@ -1048,6 +1082,23 @@ button:not(.btn):not(.btn-link):not(.cbtn):hover{transform:translateY(-1px);box-
       }
     }
 
+    function updateJourneyProgress() {
+      const routeDone = !!selectedRoute;
+      const journeyDone = !!originPointId && !!destinationPointId && originPointId !== destinationPointId;
+      const pickup = getRequestLocation();
+      const pickupDone = requestMode === "RANK"
+        ? !!pickup.pickupPointId
+        : !!(pickup.pickupPointId || pickup.pickupDescription || (latitude !== null && longitude !== null));
+      ["stepRoute","stepJourney","stepPickup","stepRequest"].forEach(id => $(id)?.classList.remove("active","done"));
+      if (routeDone) $("stepRoute")?.classList.add(journeyDone ? "done" : "active");
+      if (journeyDone) $("stepJourney")?.classList.add(pickupDone ? "done" : "active");
+      if (pickupDone) $("stepPickup")?.classList.add(requestMode ? "done" : "active");
+      if (requestMode && journeyDone && pickupDone) $("stepRequest")?.classList.add("active");
+      const origin = (availability?.pickupPoints || []).find(p => p.id === originPointId);
+      const destination = (availability?.pickupPoints || []).find(p => p.id === destinationPointId);
+      $("journeyPill") && ($("journeyPill").textContent = origin && destination ? origin.name + " → " + destination.name : "Journey");
+    }
+
     function renderRequestModes() {
       const modeContainer =
         $("modeOptions");
@@ -1156,6 +1207,7 @@ button:not(.btn):not(.btn-link):not(.cbtn):hover{transform:translateY(-1px);box-
 
       renderJourneyPoints();
       renderPickupPoints();
+      updateJourneyProgress();
 
       const isRank =
         mode === "RANK";
@@ -1239,6 +1291,7 @@ button:not(.btn):not(.btn-link):not(.cbtn):hover{transform:translateY(-1px);box-
 
       $("coords").textContent = "";
       hide("coords");
+      updateJourneyProgress();
     }
 
     function clearLocation() {
@@ -1273,6 +1326,7 @@ button:not(.btn):not(.btn-link):not(.cbtn):hover{transform:translateY(-1px);box-
             `Location captured: ${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
 
           show("coords");
+          updateJourneyProgress();
 
           showRequestStatus(
             "Your current location has been added to this request.",
@@ -1493,6 +1547,7 @@ button:not(.btn):not(.btn-link):not(.cbtn):hover{transform:translateY(-1px);box-
         );
 
         show("cancelBtn");
+        updateJourneyProgress();
 
       } catch (error) {
         showRequestStatus(
