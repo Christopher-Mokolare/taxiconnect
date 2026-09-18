@@ -1,10 +1,11 @@
 name: TaxiConnect Platform E2E
 
 on:
-  pull_request:
   push:
     branches:
-      - feature/full-platform-control-plane
+      - "**"
+  pull_request:
+  workflow_dispatch:
 
 jobs:
   e2e:
@@ -12,17 +13,77 @@ jobs:
     defaults:
       run:
         working-directory: cloudflare
+    env:
+      DRIVER_PIN: "111111"
+      CONDUCTOR_PIN: "111111"
+      OPERATOR_ADMIN_PIN: "111111"
+      SUPERADMIN_PIN: "111111"
+      SESSION_SECRET: "taxiconnect-ci-session-secret"
+      APP_ENV: "test"
+      E2E_PIN: "111111"
+      BASE_URL: "http://127.0.0.1:8787"
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
-
-      - run: npm install
-
-      - name: Syntax check
+          node-version: "22"
+      - name: Install dependencies
+        run: npm install
+      - name: Validate worker syntax
         run: node --check src/index.js
-
-      - name: Platform E2E
-        run: chmod +x tests/run-platform-e2e.sh && ./tests/run-platform-e2e.sh
+      - name: Prepare CI migration chain
+        run: |
+          rm -rf ci-migrations
+          mkdir -p ci-migrations
+          for f in migrations/000[1-9]_*.sql; do cp "$f" "ci-migrations/$(basename "$f")"; done
+          cat > ci-migrations/0010_prepare_taxi_columns.sql <<'SQL'
+          ALTER TABLE users ADD COLUMN last_seen_at INTEGER;
+          ALTER TABLE users ADD COLUMN phone TEXT;
+          ALTER TABLE taxis ADD COLUMN operator_id TEXT;
+          ALTER TABLE taxis ADD COLUMN vehicle_registration_number TEXT;
+          ALTER TABLE taxis ADD COLUMN active INTEGER NOT NULL DEFAULT 1;
+          SQL
+          cp migrations/0010_finalize_taxi_vehicle_model.sql ci-migrations/0011_finalize_taxi_vehicle_model.sql
+          cp migrations/0011_platform_control_plane.sql ci-migrations/0012_platform_control_plane.sql
+          cp migrations/0012_incident_model.sql ci-migrations/0013_incident_model.sql
+          cp wrangler.jsonc .ci-wrangler.jsonc
+          python - <<'PY'
+          from pathlib import Path
+          p = Path(".ci-wrangler.jsonc")
+          s = p.read_text()
+          marker = '      "database_id": "'
+          start = s.index(marker)
+          end = s.index('\n', start)
+          line = s[start:end]
+          if not line.rstrip().endswith(','):
+              line = line.rstrip() + ','
+          s = s[:start] + line + '\n      "migrations_dir": "ci-migrations"' + s[end:]
+          p.write_text(s)
+          PY
+      - name: Apply local migrations
+        run: npx wrangler d1 migrations apply taxiconnect --local --config=.ci-wrangler.jsonc
+      - name: Seed isolated E2E database
+        run: npx wrangler d1 execute taxiconnect --local --file=tests/seed-platform-e2e.sql --yes
+      - name: Start Worker
+        run: |
+          printf '%s\n' \
+            "DRIVER_PIN=$DRIVER_PIN" \
+            "CONDUCTOR_PIN=$CONDUCTOR_PIN" \
+            "OPERATOR_ADMIN_PIN=$OPERATOR_ADMIN_PIN" \
+            "SUPERADMIN_PIN=$SUPERADMIN_PIN" \
+            "SESSION_SECRET=$SESSION_SECRET" > .dev.vars
+          npx wrangler dev --local --config=.ci-wrangler.jsonc --ip 127.0.0.1 --port 8787 > /tmp/taxiconnect-worker.log 2>&1 &
+          echo $! > /tmp/taxiconnect-worker.pid
+          for i in $(seq 1 40); do
+            if curl -fsS "$BASE_URL/api/health" >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/taxiconnect-worker.log
+          exit 1
+      - name: Role and domain E2E
+        run: node tests/run-platform-e2e.mjs
+      - name: Realtime E2E
+        run: node tests/run-realtime-e2e.mjs
+      - name: Worker logs
+        if: always()
+        run: if [ -f /tmp/taxiconnect-worker.log ]; then cat /tmp/taxiconnect-worker.log; fi
