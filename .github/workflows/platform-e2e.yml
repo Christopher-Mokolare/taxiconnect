@@ -44,7 +44,19 @@ jobs:
           cp migrations/0010_finalize_taxi_vehicle_model.sql ci-migrations/0011_finalize_taxi_vehicle_model.sql
           cp migrations/0011_platform_control_plane.sql ci-migrations/0012_platform_control_plane.sql
           cp wrangler.jsonc .ci-wrangler.jsonc
-          sed -i '/"database_id":/a\      "migrations_dir": "ci-migrations",' .ci-wrangler.jsonc
+          python - <<'PY'
+          from pathlib import Path
+          p = Path(".ci-wrangler.jsonc")
+          s = p.read_text()
+          marker = '      "database_id": "'
+          start = s.index(marker)
+          end = s.index('\n', start)
+          line = s[start:end]
+          if not line.rstrip().endswith(','):
+              line = line.rstrip() + ','
+          s = s[:start] + line + '\n      "migrations_dir": "ci-migrations"' + s[end:]
+          p.write_text(s)
+          PY
       - name: Apply local migrations
         run: npx wrangler d1 migrations apply taxiconnect --local --config=.ci-wrangler.jsonc
       - name: Seed isolated E2E database
