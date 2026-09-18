@@ -43,6 +43,7 @@
   },
   "env": {
     "production": {
+      "name": "taxiconnect-api",
       "vars": {
         "APP_ENV": "production"
       },
