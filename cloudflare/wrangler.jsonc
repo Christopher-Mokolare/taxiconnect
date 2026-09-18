@@ -29,6 +29,15 @@
       ]
     }
   ],
+  "secrets": {
+    "required": [
+      "SESSION_SECRET",
+      "DRIVER_PIN",
+      "CONDUCTOR_PIN",
+      "OPERATOR_ADMIN_PIN",
+      "SUPERADMIN_PIN"
+    ]
+  },
   "vars": {
     "APP_ENV": "development"
   },
@@ -50,6 +59,15 @@
             "name": "DISPATCH",
             "class_name": "DispatchRoom"
           }
+        ]
+      },
+      "secrets": {
+        "required": [
+          "SESSION_SECRET",
+          "DRIVER_PIN",
+          "CONDUCTOR_PIN",
+          "OPERATOR_ADMIN_PIN",
+          "SUPERADMIN_PIN"
         ]
       }
     }
