@@ -63,7 +63,7 @@ const lineId=opened.line.id;
 await req("conductor taxi pool","GET","/api/conductor/taxis?operatorId=e2e-operator&routeId=e2e-route",{token:COND});
 await req("conductor adds first taxi","POST","/api/conductor/line/add",{token:COND,body:{lineSessionId:lineId,taxiId:"e2e-taxi"}});
 await req("conductor adds second taxi","POST","/api/conductor/line/add",{token:COND,body:{lineSessionId:lineId,taxiId:taxi2.taxi.id}});
-await req("conductor reorder line","POST","/api/conductor/line/reorder",{token:COND,body:{lineSessionId:lineId,taxiIds:[taxi2.taxi.id,"e2e-taxi"]}});
+await req("conductor reorder line","POST","/api/conductor/line/reorder",{token:COND,body:{lineSessionId:lineId,taxiIds:["e2e-taxi",taxi2.taxi.id]}});
 await req("conductor demand view","GET","/api/conductor/demand?operatorId=e2e-operator&routeId=e2e-route",{token:COND});
 await req("conductor stats","GET","/api/conductor/stats?operatorId=e2e-operator",{token:COND});
 await req("conductor summon route demand","POST","/api/conductor/summon",{token:COND,body:{operatorId:"e2e-operator",routeId:"e2e-route",requestType:"ROUTE_DEMAND",passengerCount:4}});
