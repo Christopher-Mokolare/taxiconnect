@@ -57,7 +57,7 @@ jobs:
             "OPERATOR_ADMIN_PIN=$OPERATOR_ADMIN_PIN" \
             "SUPERADMIN_PIN=$SUPERADMIN_PIN" \
             "SESSION_SECRET=$SESSION_SECRET" > .dev.vars
-          npx wrangler dev --local --ip 127.0.0.1 --port 8787 > /tmp/taxiconnect-worker.log 2>&1 &
+          npx wrangler dev --local --config=.ci-wrangler.jsonc --ip 127.0.0.1 --port 8787 > /tmp/taxiconnect-worker.log 2>&1 &
           echo $! > /tmp/taxiconnect-worker.pid
           for i in $(seq 1 40); do
             if curl -fsS "$BASE_URL/api/health" >/dev/null; then exit 0; fi
