@@ -12,7 +12,7 @@ check(){ local name="$1" expected="$2" method="$3" path="$4" token="${5:-}" body
  if [[ "$code" == "$expected" ]]; then echo "PASS | $name | $code"; PASS=$((PASS+1)); else echo "FAIL | $name | got $code expected $expected"; cat "$f"; FAIL=$((FAIL+1)); fi
 }
 
-login(){ local role="$1" name="$2"; curl -sS -X POST "$BASE_URL/api/auth/login" -H 'Content-Type: application/json' -d "{\"role\":\"$role\",\"name\":\"$name\",\"pin\":\"$PIN\"}" | node -pe 'JSON.parse(fs.readFileSync(0,"utf8")).token'; }
+login(){ local role="$1" name="$2"; curl -sS -X POST "$BASE_URL/api/auth/login" -H 'Content-Type: application/json' -d "{\"role\":\"$role\",\"name\":\"$name\",\"pin\":\"$PIN\"}" | node -e 'const fs=require("fs"); console.log(JSON.parse(fs.readFileSync(0,"utf8")).token)'; }
 
 echo "=== TaxiConnect platform E2E ==="
 check "health" 200 GET /api/health
