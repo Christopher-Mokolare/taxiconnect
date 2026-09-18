@@ -31,8 +31,22 @@ jobs:
         run: npm install
       - name: Validate worker syntax
         run: node --check src/index.js
+      - name: Prepare CI migration chain
+        run: |
+          rm -rf ci-migrations
+          mkdir -p ci-migrations
+          for f in migrations/000[1-9]_*.sql; do cp "$f" "ci-migrations/$(basename "$f")"; done
+          cat > ci-migrations/0010_prepare_taxi_columns.sql <<'SQL'
+          ALTER TABLE taxis ADD COLUMN operator_id TEXT;
+          ALTER TABLE taxis ADD COLUMN vehicle_registration_number TEXT;
+          ALTER TABLE taxis ADD COLUMN active INTEGER NOT NULL DEFAULT 1;
+          SQL
+          cp migrations/0010_finalize_taxi_vehicle_model.sql ci-migrations/0011_finalize_taxi_vehicle_model.sql
+          cp migrations/0011_platform_control_plane.sql ci-migrations/0012_platform_control_plane.sql
+          cp wrangler.jsonc .ci-wrangler.jsonc
+          sed -i '/"database_id":/a\      "migrations_dir": "ci-migrations",' .ci-wrangler.jsonc
       - name: Apply local migrations
-        run: npx wrangler d1 migrations apply taxiconnect --local
+        run: npx wrangler d1 migrations apply taxiconnect --local --config=.ci-wrangler.jsonc
       - name: Seed isolated E2E database
         run: npx wrangler d1 execute taxiconnect --local --file=tests/seed-platform-e2e.sql --yes
       - name: Start Worker
