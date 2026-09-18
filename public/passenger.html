@@ -685,6 +685,38 @@ button:not(.btn):not(.btn-link):not(.cbtn):hover{transform:translateY(-1px);box-
     let latitude = null;
     let longitude = null;
 
+    let dispatchSocket = null;
+    let dispatchReconnectTimer = null;
+    let dispatchRefreshTimer = null;
+
+    function connectDispatch() {
+      try {
+        if (dispatchSocket && [WebSocket.OPEN, WebSocket.CONNECTING].includes(dispatchSocket.readyState)) return;
+        const protocol = location.protocol === "https:" ? "wss:" : "ws:";
+        dispatchSocket = new WebSocket(protocol + "//" + location.host + "/ws");
+        dispatchSocket.onmessage = event => {
+          try {
+            const message = JSON.parse(event.data || "{}");
+            if (message.type === "trip_updated" && (!selectedRoute || message.routeId === selectedRoute.id)) {
+              clearTimeout(dispatchRefreshTimer);
+              dispatchRefreshTimer = setTimeout(() => {
+                if (selectedRoute) selectRoute(selectedRoute.id);
+              }, 250);
+            }
+          } catch {}
+        };
+        dispatchSocket.onclose = () => {
+          clearTimeout(dispatchReconnectTimer);
+          dispatchReconnectTimer = setTimeout(connectDispatch, 3000);
+        };
+        dispatchSocket.onerror = () => dispatchSocket.close();
+      } catch {
+        clearTimeout(dispatchReconnectTimer);
+        dispatchReconnectTimer = setTimeout(connectDispatch, 5000);
+      }
+    }
+
+
     const $ = id =>
       document.getElementById(id);
 
@@ -1734,6 +1766,7 @@ button:not(.btn):not(.btn-link):not(.cbtn):hover{transform:translateY(-1px);box-
     }
 
     loadRoutes();
+    connectDispatch();
   </script>
 </body>
 </html>
