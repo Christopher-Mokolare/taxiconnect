@@ -5014,6 +5014,38 @@ async function handleApi(request, env) {
     return ok({ incidents: await platformIncidents(env, url) });
   }
 
+  if (path === "/api/superadmin/incident/status" && method === "POST") {
+    const auth = await requireRole(request, env, ["superadmin"]);
+    const body = await readJson(request);
+    const incidentId = requireString(body.incidentId, "incidentId");
+    const status = requireString(body.status, "status");
+    if (!["OPEN","ACKNOWLEDGED","RESOLVED"].includes(status)) {
+      throw new HttpError("Invalid incident status.", 400);
+    }
+    const timestamp = now();
+    const fields = status === "ACKNOWLEDGED"
+      ? "status = ?, acknowledged_at = ?"
+      : status === "RESOLVED"
+        ? "status = ?, resolved_at = ?, resolved_by = ?"
+        : "status = ?";
+    const values = status === "ACKNOWLEDGED"
+      ? [status, timestamp, incidentId]
+      : status === "RESOLVED"
+        ? [status, timestamp, auth.user.id, incidentId]
+        : [status, incidentId];
+    await env.DB.prepare(
+      `UPDATE system_incidents SET ${fields} WHERE id = ?`
+    ).bind(...values).run();
+    await writeAudit(env, {
+      actorUserId: auth.user.id,
+      action: "INCIDENT_STATUS_CHANGED",
+      entityType: "system_incident",
+      entityId: incidentId,
+      details: { status }
+    });
+    return ok({ incidentId, status });
+  }
+
   if (path === "/api/superadmin/health" && method === "GET") {
     await requireRole(request, env, ["superadmin"]);
     return await platformHealth(env);
@@ -5817,6 +5849,16 @@ export default {
       }
 
       console.error(error);
+
+      const requestUrl = new URL(request.url);
+      await recordIncident(env, {
+        severity: "ERROR",
+        source: "worker",
+        message: error?.message || "Internal server error.",
+        stack: error?.stack || null,
+        requestPath: requestUrl.pathname,
+        requestMethod: request.method
+      });
 
       return fail(
         "Internal server error.",
