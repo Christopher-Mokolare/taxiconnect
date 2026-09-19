@@ -5938,14 +5938,32 @@ export default {
       console.error(error);
 
       const requestUrl = new URL(request.url);
-      await recordIncident(env, {
-        severity: "ERROR",
-        source: "worker",
-        message: error?.message || "Internal server error.",
-        stack: error?.stack || null,
-        requestPath: requestUrl.pathname,
-        requestMethod: request.method
-      });
+
+      // Incident persistence is observability, not request-critical work.
+      // Never let a D1/incident write prevent the client from receiving 500.
+      try {
+        await Promise.race([
+          recordIncident(env, {
+            severity: "ERROR",
+            source: "worker",
+            message: error?.message || "Internal server error.",
+            stack: error?.stack || null,
+            requestPath: requestUrl.pathname,
+            requestMethod: request.method
+          }),
+          new Promise((_, reject) =>
+            setTimeout(
+              () => reject(new Error("Incident persistence timed out.")),
+              1000
+            )
+          )
+        ]);
+      } catch (incidentError) {
+        console.error(
+          "Incident persistence skipped:",
+          incidentError?.message || incidentError
+        );
+      }
 
       return fail(
         "Internal server error.",
