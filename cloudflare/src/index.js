@@ -4913,7 +4913,8 @@ async function operatorOverview(env, auth) {
   const [operator, members, taxis, routes, activeTrips] = await Promise.all([
     env.DB.prepare("SELECT * FROM operators WHERE id = ? LIMIT 1").bind(operatorId).first(),
     env.DB.prepare(`
-      SELECT u.id,u.name,u.role,u.phone,u.active,om.membership_role
+      SELECT u.id,u.name,u.role,u.phone,u.active,om.membership_role,
+        u.driver_license_number,u.prdp_number,u.prdp_category,u.prdp_expiry_date,u.compliance_status
       FROM operator_memberships om JOIN users u ON u.id=om.user_id
       WHERE om.operator_id=? ORDER BY u.name
     `).bind(operatorId).all(),
