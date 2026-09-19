@@ -4688,7 +4688,9 @@ async function setOperatorActive(env, auth, operatorId, active) {
 }
 
 async function setRouteActive(env, auth, routeId, active) {
-  const route = await getRoute(env, routeId);
+  const route = await env.DB.prepare("SELECT id, name, active FROM routes WHERE id = ? LIMIT 1").bind(routeId).first();
+  if (!route) throw new HttpError("Route not found.", 404);
+
   await env.DB.prepare("UPDATE routes SET active = ?, updated_at = ? WHERE id = ?")
     .bind(active ? 1 : 0, now(), routeId).run();
 
@@ -4752,7 +4754,7 @@ async function setMemberActive(env, auth, userId, active) {
   const membership = await requireOperatorMembership(env, auth.user.id, ["operator_admin"]);
   const member = await env.DB.prepare(`
     SELECT id, membership_role FROM operator_memberships
-    WHERE operator_id = ? AND user_id = ? AND active = 1
+    WHERE operator_id = ? AND user_id = ?
     LIMIT 1
   `).bind(membership.operator_id, userId).first();
 
@@ -4874,7 +4876,14 @@ async function upsertOperatorRoutePoint(env, auth, body) {
 
 async function deactivateTaxi(env, auth, taxiId, active) {
   const membership = await requireOperatorMembership(env, auth.user.id, ["operator_admin"]);
-  const taxi = await getTaxiForOperator(env, membership.operator_id, taxiId);
+  const taxi = await env.DB.prepare(`
+    SELECT id, operator_id, vehicle_registration_number, active
+    FROM taxis
+    WHERE id = ? AND operator_id = ?
+    LIMIT 1
+  `).bind(taxiId, membership.operator_id).first();
+
+  if (!taxi) throw new HttpError("Taxi not found or access denied.", 404);
 
   await env.DB.prepare("UPDATE taxis SET active=?, last_updated=? WHERE id=?")
     .bind(active ? 1 : 0, now(), taxiId).run();

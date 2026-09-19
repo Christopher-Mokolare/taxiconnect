@@ -103,6 +103,50 @@ const event=await eventPromise;
 if(!event.type) throw new Error("broadcast missing type");
 console.log("PASS | websocket realtime | "+event.type);pass++;total++;ws.close();
 
+
+// Destructive/lifecycle safety checks: TaxiConnect uses deactivation/soft-retirement
+// for operational records. There are intentionally no public DELETE endpoints for
+// operators, routes, users, or taxis.
+await req("deactivate second operator","POST","/api/superadmin/operator/status",{token:SUPER,body:{operatorId:op2,active:false}});
+const opsAfterDeactivate=await req("verify operator deactivated","GET","/api/superadmin/operators",{token:SUPER});
+const deactivatedOperator=opsAfterDeactivate.operators.find(o=>o.id===op2);
+if(!deactivatedOperator || deactivatedOperator.active) throw new Error("operator was not deactivated");
+await req("deactivated operator hidden from active route access","POST","/api/superadmin/operator/status",{token:SUPER,body:{operatorId:op2,active:true}});
+await req("deactivate second operator again","POST","/api/superadmin/operator/status",{token:SUPER,body:{operatorId:op2,active:false}});
+
+await req("deactivate collection route","POST","/api/superadmin/route/status",{token:SUPER,body:{routeId:collectionRoute,active:false}});
+const routesAfterDeactivate=await req("verify route deactivated","GET","/api/superadmin/routes",{token:SUPER});
+const deactivatedRoute=routesAfterDeactivate.routes.find(r=>r.id===collectionRoute);
+if(!deactivatedRoute || deactivatedRoute.active) throw new Error("route was not deactivated");
+
+await req("reactivate collection route","POST","/api/superadmin/route/status",{token:SUPER,body:{routeId:collectionRoute,active:true}});
+await req("deactivate second driver","POST","/api/operator/member/status",{token:OP,body:{userId:driver2.user.id,active:false}});
+const operatorAfterMemberDeactivate=await req("verify member deactivated","GET","/api/operator/overview",{token:OP});
+const deactivatedMember=operatorAfterMemberDeactivate.members.find(m=>m.id===driver2.user.id);
+if(!deactivatedMember || deactivatedMember.active) throw new Error("member was not deactivated");
+
+await req("reactivate second driver","POST","/api/operator/member/status",{token:OP,body:{userId:driver2.user.id,active:true}});
+await req("deactivate second taxi","POST","/api/operator/taxi/status",{token:OP,body:{taxiId:taxi2.taxi.id,active:false}});
+const operatorAfterTaxiDeactivate=await req("verify taxi deactivated","GET","/api/operator/overview",{token:OP});
+const deactivatedTaxi=operatorAfterTaxiDeactivate.taxis.find(t=>t.id===taxi2.taxi.id);
+if(!deactivatedTaxi || deactivatedTaxi.active) throw new Error("taxi was not deactivated");
+await req("reactivate second taxi","POST","/api/operator/taxi/status",{token:OP,body:{taxiId:taxi2.taxi.id,active:true}});
+
+for (const [name,path] of [
+  ["operator DELETE endpoint absent","/superadmin/operator/create"],
+  ["route DELETE endpoint absent","/superadmin/route/create"],
+  ["taxi DELETE endpoint absent","/operator/taxi/create"],
+  ["user DELETE endpoint absent","/superadmin/users"]
+]) {
+  await req(name,"DELETE","/api"+path,{token:SUPER,expected:404});
+}
+
+const lifecycleAudit=await req("audit contains lifecycle events","GET","/api/superadmin/audit",{token:SUPER});
+const lifecycleActions=(lifecycleAudit.audit||[]).map(a=>a.action);
+for (const action of ["OPERATOR_DEACTIVATED","ROUTE_DEACTIVATED"]) {
+  if(!lifecycleActions.includes(action)) throw new Error("missing audit action: "+action);
+}
+
 console.log(`TOTAL: ${total}`);
 console.log(`PASS: ${pass}`);
 console.log(`FAIL: ${fail}`);

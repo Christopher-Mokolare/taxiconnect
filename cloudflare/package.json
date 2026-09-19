@@ -11,6 +11,6 @@
     "d1:remote": "wrangler d1 execute taxiconnect --remote --file=./migrations/0001_initial.sql"
   },
   "devDependencies": {
-    "wrangler": "latest"
+    "wrangler": "4.134.0"
   }
 }
