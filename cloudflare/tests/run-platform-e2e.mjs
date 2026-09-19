@@ -143,7 +143,7 @@ for (const [name,path] of [
 
 const lifecycleAudit=await req("audit contains lifecycle events","GET","/api/superadmin/audit",{token:SUPER});
 const lifecycleActions=(lifecycleAudit.audit||[]).map(a=>a.action);
-for (const action of ["OPERATOR_STATUS_CHANGED","ROUTE_STATUS_CHANGED"]) {
+for (const action of ["OPERATOR_DEACTIVATED","ROUTE_DEACTIVATED"]) {
   if(!lifecycleActions.includes(action)) throw new Error("missing audit action: "+action);
 }
 
