@@ -4401,26 +4401,54 @@ async function authLogin(env, body) {
     }
   }
 
-  const timestamp = now();
-
-  await env.DB.prepare(`
-    UPDATE users
-    SET
-      last_login_at = ?,
-      last_seen_at = ?
-    WHERE id = ?
-  `)
-    .bind(
-      timestamp,
-      timestamp,
-      user.id
-    )
-    .run();
-
+  // Authentication must not block on non-critical login telemetry.
+  // The login token is authoritative; timestamp persistence is best-effort.
+  // A transient D1 write must never make a valid login hang indefinitely.
   const token = await createSession(
     env,
     user
   );
+
+  const memberships =
+    role === "superadmin"
+      ? []
+      : (
+          await getOperatorMemberships(
+            env,
+            user.id
+          )
+        ).results || [];
+
+  // Persist login/seen timestamps with a hard timeout. If D1 is temporarily
+  // slow, the successful authentication response is still returned.
+  try {
+    await Promise.race([
+      env.DB.prepare(`
+        UPDATE users
+        SET
+          last_login_at = ?,
+          last_seen_at = ?
+        WHERE id = ?
+      `)
+        .bind(
+          now(),
+          now(),
+          user.id
+        )
+        .run(),
+      new Promise((_, reject) =>
+        setTimeout(
+          () => reject(new Error("Login timestamp update timed out.")),
+          1500
+        )
+      )
+    ]);
+  } catch (error) {
+    console.warn(
+      "Login timestamp persistence skipped:",
+      error?.message || error
+    );
+  }
 
   return ok({
     token,
@@ -4431,15 +4459,7 @@ async function authLogin(env, body) {
       phone: user.phone
     },
     expiresIn: SESSION_TTL_SECONDS,
-    memberships:
-      role === "superadmin"
-        ? []
-        : (
-            await getOperatorMemberships(
-              env,
-              user.id
-            )
-          ).results || []
+    memberships
   });
 }
 
