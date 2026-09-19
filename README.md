@@ -2,19 +2,40 @@
 
 Demand-driven taxi dispatch system connecting Sun City and Rustenburg.
 
-## Quick Start
+## Current architecture
+
+TaxiConnect now uses **Cloudflare Workers + D1** as the primary application platform.
+
+- **Frontend:** static HTML/CSS/JavaScript in `public/`
+- **API/runtime:** Cloudflare Worker in `cloudflare/src/index.js`
+- **Database:** Cloudflare D1
+- **Realtime:** Cloudflare WebSocket handling
+- **Deployment:** Wrangler
+
+Firebase is no longer part of the application runtime or deployment path.
+
+## Quick start
 
 ```bash
-# Clone
-git clone https://github.com/obakengBotsZA/taxiconnect.git
-cd taxiconnect
+npm install
+npm run build
 
-# Install dependencies
-cd firebase/functions && npm install && cd ../..
+cd cloudflare
+npm install
+npm run dev
+```
 
-# Set PINs in .env file
-nano firebase/functions/.env
-# Edit DRIVER_PIN and CONDUCTOR_PIN
+## Deploy
 
-# Deploy
-firebase deploy --only database,functions,hosting
+Authenticate Wrangler with your Cloudflare account, then:
+
+```bash
+cd cloudflare
+npm run deploy
+```
+
+The production deployment is defined by `cloudflare/wrangler.jsonc` and the GitHub Actions workflows under `.github/workflows/`.
+
+## Architecture documentation
+
+See the `docs/` directory for system architecture, data lifecycle, deployment, and operational documentation.
