@@ -4754,7 +4754,7 @@ async function setMemberActive(env, auth, userId, active) {
   const membership = await requireOperatorMembership(env, auth.user.id, ["operator_admin"]);
   const member = await env.DB.prepare(`
     SELECT id, membership_role FROM operator_memberships
-    WHERE operator_id = ? AND user_id = ? AND active = 1
+    WHERE operator_id = ? AND user_id = ?
     LIMIT 1
   `).bind(membership.operator_id, userId).first();
 
