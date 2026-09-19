@@ -1026,45 +1026,31 @@ async function routeList(env) {
 
 async function driverRoutes(env, driverId) {
   const result = await env.DB.prepare(`
-    SELECT DISTINCT
-      r.id,
-      r.origin,
-      r.destination,
-      r.name,
-      r.service_mode,
-      t.id AS taxi_id,
-      t.vehicle_registration_number,
-      t.capacity,
-      o.id AS operator_id,
-      o.name AS operator_name
+    SELECT DISTINCT r.id,r.origin,r.destination,r.name,r.service_mode,
+      t.id AS taxi_id,t.vehicle_registration_number,t.capacity,o.id AS operator_id,o.name AS operator_name,
+      u.prdp_number,u.prdp_category,u.prdp_expiry_date,u.compliance_status AS prdp_status,
+      t.roadworthy_expiry_date,t.roadworthy_status,o.operating_license_expiry_date,o.tax_clearance_status
     FROM taxi_driver_assignments a
-    JOIN taxis t
-      ON t.id = a.taxi_id
-    JOIN taxi_routes tr
-      ON tr.taxi_id = t.id
-      AND tr.active = 1
-    JOIN routes r
-      ON r.id = tr.route_id
-      AND r.active = 1
-    JOIN operator_routes orr
-      ON orr.operator_id = t.operator_id
-      AND orr.route_id = r.id
-      AND orr.active = 1
-    JOIN operators o
-      ON o.id = t.operator_id
-      AND o.active = 1
-    WHERE a.driver_id = ?
-      AND a.active = 1
-      AND t.active = 1
-    ORDER BY
-      t.vehicle_registration_number,
-      r.origin,
-      r.destination
-  `)
-    .bind(driverId)
-    .all();
-
-  return result.results || [];
+    JOIN taxis t ON t.id=a.taxi_id
+    JOIN taxi_routes tr ON tr.taxi_id=t.id AND tr.active=1
+    JOIN routes r ON r.id=tr.route_id AND r.active=1
+    JOIN operator_routes orr ON orr.operator_id=t.operator_id AND orr.route_id=r.id AND orr.active=1
+    JOIN operators o ON o.id=t.operator_id AND o.active=1
+    JOIN users u ON u.id=a.driver_id
+    WHERE a.driver_id=? AND a.active=1 AND t.active=1
+    ORDER BY t.vehicle_registration_number,r.origin,r.destination
+  `).bind(driverId).all();
+  return (result.results || []).map(row => ({
+    ...row,
+    compliance: {
+      prdp: complianceSummary({status: row.prdp_status, expiry_date: row.prdp_expiry_date}),
+      roadworthy: complianceSummary({status: row.roadworthy_status, expiry_date: row.roadworthy_expiry_date}),
+      operatorLicense: {ready: !!row.operating_license_expiry_date &&
+        row.operating_license_expiry_date >= new Date().toISOString().slice(0,10),
+        expiryDate: row.operating_license_expiry_date || null},
+      taxClearanceStatus: row.tax_clearance_status || "NOT_PROVIDED"
+    }
+  }));
 }
 
 async function startDriverTrip(env, auth, body) {
@@ -3505,12 +3491,10 @@ async function operatorCreateTaxi(env, auth, body) {
     );
   }
 
-  const capacity = integer(
-    body.capacity,
-    "capacity",
-    1,
-    100
-  );
+  const capacity = integer(body.capacity,"capacity",1,100);
+  const roadworthyCertificateNumber = body.roadworthyCertificateNumber ? String(body.roadworthyCertificateNumber).trim() : null;
+  const roadworthyExpiryDate = normalizeDate(body.roadworthyExpiryDate,"roadworthyExpiryDate");
+  const roadworthyStatus = normalizeComplianceStatus(body.roadworthyStatus,"roadworthyStatus");
 
   const operator = await env.DB.prepare(`
     SELECT id, name
@@ -3562,19 +3546,16 @@ async function operatorCreateTaxi(env, auth, body) {
         last_updated,
         operator_id,
         vehicle_registration_number,
-        active
+        active,roadworthy_certificate_number,roadworthy_expiry_date,roadworthy_status
       )
-    VALUES (?, NULL, NULL, ?, 0, 'OFFLINE', ?, ?, ?, ?, 1)
+    VALUES (?, NULL, NULL, ?, 0, 'OFFLINE', ?, ?, ?, ?, 1, ?, ?, ?)
   `)
     .bind(
       taxiId,
       capacity,
       timestamp,
-      timestamp,
-      operatorId,
-      registration
-    )
-    .run();
+      timestamp,operatorId,registration,roadworthyCertificateNumber,roadworthyExpiryDate,roadworthyStatus
+    ).run();
 
   await writeAudit(env, {
     actorUserId: auth.user.id,
@@ -3583,8 +3564,7 @@ async function operatorCreateTaxi(env, auth, body) {
     entityType: "taxi",
     entityId: taxiId,
     details: {
-      vehicleRegistrationNumber: registration,
-      capacity
+      vehicleRegistrationNumber: registration,capacity,roadworthyCertificateNumber,roadworthyExpiryDate,roadworthyStatus
     }
   });
 
@@ -4296,6 +4276,87 @@ async function superadminAuthorizeOperatorRoute(
   });
 }
 
+
+function normalizeDate(value, field) {
+  if (value == null || String(value).trim() === "") return null;
+  const valueText = String(value).trim();
+  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(valueText)) {
+    throw new HttpError(field + " must use YYYY-MM-DD format.", 400);
+  }
+  const parsed = new Date(valueText + "T00:00:00Z");
+  if (Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== valueText) {
+    throw new HttpError(field + " must be a valid date.", 400);
+  }
+  return valueText;
+}
+
+function normalizeComplianceStatus(value, field) {
+  if (value == null || String(value).trim() === "") return "NOT_PROVIDED";
+  const status = String(value).trim().toUpperCase();
+  if (!["NOT_PROVIDED", "PENDING", "VALID", "EXPIRED", "SUSPENDED"].includes(status)) {
+    throw new HttpError(field + " has an invalid status.", 400);
+  }
+  return status;
+}
+
+function complianceValid(expiryDate, status) {
+  if (status !== "VALID" || !expiryDate) return false;
+  return expiryDate >= new Date().toISOString().slice(0, 10);
+}
+
+function complianceSummary(row) {
+  if (!row) return { ready: false, status: "NOT_PROVIDED", expiryDate: null };
+  const status = String(row.status || "NOT_PROVIDED").toUpperCase();
+  return { ready: complianceValid(row.expiry_date, status), status, expiryDate: row.expiry_date || null };
+}
+
+async function driverDemandOverview(env, auth) {
+  const rows = await env.DB.prepare(`
+    SELECT r.id AS route_id, r.name AS route_name, r.origin, r.destination, r.service_mode,
+      pp.id AS pickup_point_id, pp.name AS pickup_point_name,
+      COALESCE((SELECT SUM(rw.group_size) FROM route_waiting_passengers rw
+        WHERE rw.route_id=r.id AND rw.pickup_point_id=pp.id AND rw.status IN ('WAITING','ASSIGNED')),0) AS waiting_passengers,
+      COALESCE((SELECT SUM(ds.group_size) FROM demand_signals ds
+        WHERE ds.route_id=r.id AND ds.pickup_point_id=pp.id AND ds.status='ACTIVE'),0) AS active_demand,
+      (SELECT COUNT(*) FROM trips tr2 JOIN taxis tx2 ON tx2.id=tr2.taxi_id
+        WHERE tr2.route_id=r.id AND tx2.operator_id=t.operator_id
+        AND tr2.status IN ('LOADING','COLLECTING','FULL','DEPARTED')) AS active_trips
+    FROM taxi_driver_assignments a
+    JOIN taxis t ON t.id=a.taxi_id
+    JOIN taxi_routes tr ON tr.taxi_id=t.id AND tr.active=1
+    JOIN routes r ON r.id=tr.route_id AND r.active=1
+    JOIN operator_routes orr ON orr.operator_id=t.operator_id AND orr.route_id=r.id AND orr.active=1
+    JOIN route_pickup_points pp ON pp.route_id=r.id AND pp.active=1
+    WHERE a.driver_id=? AND a.active=1 AND t.active=1
+    ORDER BY r.name, pp.sequence, pp.name
+  `).bind(auth.user.id).all();
+
+  const grouped = new Map();
+  for (const row of rows.results || []) {
+    if (!grouped.has(row.route_id)) {
+      grouped.set(row.route_id, {
+        routeId: row.route_id, routeName: row.route_name, origin: row.origin, destination: row.destination,
+        serviceMode: row.service_mode, waitingPassengers: 0, activeDemand: 0,
+        activeTrips: Number(row.active_trips || 0), pickupPoints: []
+      });
+    }
+    const route = grouped.get(row.route_id);
+    const waiting = Number(row.waiting_passengers || 0);
+    const demand = Number(row.active_demand || 0);
+    route.waitingPassengers += waiting;
+    route.activeDemand += demand;
+    route.pickupPoints.push({ pickupPointId: row.pickup_point_id, pickupPointName: row.pickup_point_name,
+      waitingPassengers: waiting, activeDemand: demand });
+  }
+  const routes = [...grouped.values()].map(route => ({
+    ...route,
+    totalDemand: route.waitingPassengers + route.activeDemand,
+    demandLevel: route.waitingPassengers + route.activeDemand >= 15 ? "HIGH" :
+      route.waitingPassengers + route.activeDemand >= 5 ? "MEDIUM" : "LOW"
+  }));
+  return ok({ generatedAt: now(), scope: "authorized_routes_only", routes });
+}
+
 async function authLogin(env, body) {
   const role = requireString(
     body.role,
@@ -4720,6 +4781,12 @@ async function createOperationalMember(env, auth, body) {
   }
 
   const phone = normalizePhone(body.phone);
+  const driverLicenseNumber = body.driverLicenseNumber ? String(body.driverLicenseNumber).trim() : null;
+  const prdpNumber = body.prdpNumber ? String(body.prdpNumber).trim() : null;
+  const prdpCategory = body.prdpCategory ? String(body.prdpCategory).trim().toUpperCase() : null;
+  const prdpExpiryDate = normalizeDate(body.prdpExpiryDate, "prdpExpiryDate");
+  const complianceStatus = normalizeComplianceStatus(body.complianceStatus, "complianceStatus");
+  if (role === "driver" && prdpCategory && !["P","P-D"].includes(prdpCategory)) throw new HttpError("prdpCategory must be P or P-D when supplied.",400);
   const userId = id(role);
   const timestamp = now();
 
@@ -4734,9 +4801,11 @@ async function createOperationalMember(env, auth, body) {
     VALUES (?, ?, ?, ?, 1, ?, ?)
   `).bind(id("membership"), membership.operator_id, userId, role, timestamp, timestamp).run();
 
-  if (phone) {
-    await env.DB.prepare("UPDATE users SET phone = ? WHERE id = ?").bind(phone, userId).run();
-  }
+  await env.DB.prepare(`
+    UPDATE users SET phone=?,driver_license_number=?,prdp_number=?,prdp_category=?,prdp_expiry_date=?,compliance_status=?
+    WHERE id=?
+  `).bind(phone,role==="driver"?driverLicenseNumber:null,role==="driver"?prdpNumber:null,role==="driver"?prdpCategory:null,
+    role==="driver"?prdpExpiryDate:null,role==="driver"?complianceStatus:"NOT_APPLICABLE",userId).run();
 
   await writeAudit(env, {
     actorUserId: auth.user.id,
@@ -4744,10 +4813,66 @@ async function createOperationalMember(env, auth, body) {
     action: "OPERATIONAL_MEMBER_CREATED",
     entityType: "user",
     entityId: userId,
-    details: { role, phone }
+    details: { role, phone, compliance: role==="driver" ? {driverLicenseNumber,prdpNumber,prdpCategory,prdpExpiryDate,complianceStatus} : null }
   });
 
-  return ok({ user: { id: userId, name, role, phone, active: 1 } });
+  return ok({ user: { id:userId,name,role,phone,active:1,
+    driverLicenseNumber:role==="driver"?driverLicenseNumber:null,prdpNumber:role==="driver"?prdpNumber:null,
+    prdpCategory:role==="driver"?prdpCategory:null,prdpExpiryDate:role==="driver"?prdpExpiryDate:null,
+    complianceStatus:role==="driver"?complianceStatus:"NOT_APPLICABLE" } });
+}
+
+
+async function updateDriverCompliance(env, auth, body) {
+  const membership=await requireOperatorMembership(env,auth.user.id,["operator_admin"]);
+  const userId=requireString(body.userId,"userId");
+  const driver=await env.DB.prepare(`
+    SELECT u.id FROM users u JOIN operator_memberships om ON om.user_id=u.id
+    WHERE u.id=? AND u.role='driver' AND om.operator_id=? AND om.membership_role='driver' AND om.active=1 LIMIT 1
+  `).bind(userId,membership.operator_id).first();
+  if(!driver) throw new HttpError("Driver not found for this operator.",404);
+  const values={
+    driverLicenseNumber:body.driverLicenseNumber?String(body.driverLicenseNumber).trim():null,
+    prdpNumber:body.prdpNumber?String(body.prdpNumber).trim():null,
+    prdpCategory:body.prdpCategory?String(body.prdpCategory).trim().toUpperCase():null,
+    prdpExpiryDate:normalizeDate(body.prdpExpiryDate,"prdpExpiryDate"),
+    complianceStatus:normalizeComplianceStatus(body.complianceStatus,"complianceStatus")
+  };
+  if(values.prdpCategory&&!["P","P-D"].includes(values.prdpCategory)) throw new HttpError("prdpCategory must be P or P-D.",400);
+  await env.DB.prepare(`UPDATE users SET driver_license_number=?,prdp_number=?,prdp_category=?,prdp_expiry_date=?,compliance_status=?,compliance_verified_at=? WHERE id=?`)
+    .bind(values.driverLicenseNumber,values.prdpNumber,values.prdpCategory,values.prdpExpiryDate,values.complianceStatus,now(),userId).run();
+  await writeAudit(env,{actorUserId:auth.user.id,operatorId:membership.operator_id,action:"DRIVER_COMPLIANCE_UPDATED",entityType:"user",entityId:userId,details:values});
+  return ok({userId,compliance:values});
+}
+
+async function updateTaxiCompliance(env, auth, body) {
+  const membership=await requireOperatorMembership(env,auth.user.id,["operator_admin"]);
+  const taxiId=requireString(body.taxiId,"taxiId");
+  await getTaxiForOperator(env,membership.operator_id,taxiId);
+  const values={
+    roadworthyCertificateNumber:body.roadworthyCertificateNumber?String(body.roadworthyCertificateNumber).trim():null,
+    roadworthyExpiryDate:normalizeDate(body.roadworthyExpiryDate,"roadworthyExpiryDate"),
+    roadworthyStatus:normalizeComplianceStatus(body.roadworthyStatus,"roadworthyStatus")
+  };
+  await env.DB.prepare(`UPDATE taxis SET roadworthy_certificate_number=?,roadworthy_expiry_date=?,roadworthy_status=?,compliance_verified_at=? WHERE id=?`)
+    .bind(values.roadworthyCertificateNumber,values.roadworthyExpiryDate,values.roadworthyStatus,now(),taxiId).run();
+  await writeAudit(env,{actorUserId:auth.user.id,operatorId:membership.operator_id,action:"TAXI_COMPLIANCE_UPDATED",entityType:"taxi",entityId:taxiId,details:values});
+  return ok({taxiId,compliance:values});
+}
+
+async function updateOperatorCompliance(env, auth, body) {
+  const operatorId=requireString(body.operatorId,"operatorId");
+  const values={
+    operatingLicenseNumber:body.operatingLicenseNumber?String(body.operatingLicenseNumber).trim():null,
+    operatingLicenseExpiryDate:normalizeDate(body.operatingLicenseExpiryDate,"operatingLicenseExpiryDate"),
+    taxClearanceStatus:normalizeComplianceStatus(body.taxClearanceStatus,"taxClearanceStatus"),
+    taxClearanceExpiryDate:normalizeDate(body.taxClearanceExpiryDate,"taxClearanceExpiryDate"),
+    associationReference:body.associationReference?String(body.associationReference).trim():null
+  };
+  await env.DB.prepare(`UPDATE operators SET operating_license_number=?,operating_license_expiry_date=?,tax_clearance_status=?,tax_clearance_expiry_date=?,association_reference=?,compliance_verified_at=?,updated_at=? WHERE id=? AND active=1`)
+    .bind(values.operatingLicenseNumber,values.operatingLicenseExpiryDate,values.taxClearanceStatus,values.taxClearanceExpiryDate,values.associationReference,now(),now(),operatorId).run();
+  await writeAudit(env,{actorUserId:auth.user.id,operatorId,action:"OPERATOR_COMPLIANCE_UPDATED",entityType:"operator",entityId:operatorId,details:values});
+  return ok({operatorId,compliance:values});
 }
 
 async function setMemberActive(env, auth, userId, active) {
@@ -5222,6 +5347,26 @@ async function handleApi(request, env) {
   if (path === "/api/operator/route-points" && method === "POST") {
     const auth = await requireRole(request, env, ["operator_admin"]);
     return await upsertOperatorRoutePoint(env, auth, await readJson(request));
+  }
+
+  if (path === "/api/driver/demand" && method === "GET") {
+    const auth=await requireRole(request,env,["driver"]);
+    return await driverDemandOverview(env,auth);
+  }
+
+  if (path === "/api/operator/member/compliance" && method === "POST") {
+    const auth=await requireRole(request,env,["operator_admin"]);
+    return await updateDriverCompliance(env,auth,await readJson(request));
+  }
+
+  if (path === "/api/operator/taxi/compliance" && method === "POST") {
+    const auth=await requireRole(request,env,["operator_admin"]);
+    return await updateTaxiCompliance(env,auth,await readJson(request));
+  }
+
+  if (path === "/api/superadmin/operator/compliance" && method === "POST") {
+    const auth=await requireRole(request,env,["superadmin"]);
+    return await updateOperatorCompliance(env,auth,await readJson(request));
   }
 
   if (
