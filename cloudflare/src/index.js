@@ -4688,7 +4688,9 @@ async function setOperatorActive(env, auth, operatorId, active) {
 }
 
 async function setRouteActive(env, auth, routeId, active) {
-  const route = await getRoute(env, routeId);
+  const route = await env.DB.prepare("SELECT id, name, active FROM routes WHERE id = ? LIMIT 1").bind(routeId).first();
+  if (!route) throw new HttpError("Route not found.", 404);
+
   await env.DB.prepare("UPDATE routes SET active = ?, updated_at = ? WHERE id = ?")
     .bind(active ? 1 : 0, now(), routeId).run();
 
