@@ -196,6 +196,15 @@ button:not(.btn):not(.btn-link):not(.cbtn):hover{transform:translateY(-1px);box-
   </div>
   <div id="summonBanner" class="summon-banner"></div>
 
+  <div id="driverDemandCard" class="card" style="display:none">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+      <h3 style="margin:0">Demand on your authorized routes</h3>
+      <span class="tc-live-pill" id="demandUpdated">LIVE</span>
+    </div>
+    <div id="driverDemandList" style="margin-top:10px"></div>
+    <div class="tc-form-note">Demand is limited to routes your assigned taxi is authorized to operate. Use it to make an informed operational decision without roaming blindly.</div>
+  </div>
+
   <div id="checkInCard" class="card" style="margin-top:10px">
     <h3>Start a trip</h3>
     <div class="tc-form-note">Pick the vehicle and route first. Your FROM and TO points define the journey passengers are requesting.</div>
@@ -594,10 +603,47 @@ async function signOut() {
 // Driver bootstrap
 // ============================================================
 
+
+async function loadDriverDemand() {
+  try {
+    const result = await api('/driver/demand');
+    const routes = Array.isArray(result.routes) ? result.routes : [];
+    const card = document.getElementById('driverDemandCard');
+    const list = document.getElementById('driverDemandList');
+    const updated = document.getElementById('demandUpdated');
+    if (!routes.length) { card.style.display = 'none'; return; }
+    card.style.display = 'block';
+    updated.textContent = 'Updated ' + new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+    list.innerHTML = routes.map(route => {
+      const points = (route.pickupPoints || []).map(point =>
+        '<div class="row" style="margin:6px 0;padding:10px">' +
+        '<strong>' + escapeHtml(point.pickupPointName || 'Pickup point') + '</strong>' +
+        '<div class="muted" style="font-size:12px;margin-top:4px">' +
+        escapeHtml(String(point.waitingPassengers)) + ' waiting · ' +
+        escapeHtml(String(point.activeDemand)) + ' demand signals</div></div>'
+      ).join('');
+      return '<div class="row">' +
+        '<div style="display:flex;justify-content:space-between;gap:10px"><strong>' +
+        escapeHtml(route.routeName || (route.origin + ' → ' + route.destination)) +
+        '</strong><span class="badge">' + escapeHtml(route.demandLevel) + '</span></div>' +
+        '<div style="font-size:24px;font-weight:800;margin-top:8px">' + escapeHtml(String(route.totalDemand)) +
+        ' <span class="muted" style="font-size:12px;font-weight:600">total demand</span></div>' +
+        '<div class="muted" style="font-size:12px;margin-top:4px">' +
+        escapeHtml(String(route.waitingPassengers)) + ' waiting · ' +
+        escapeHtml(String(route.activeDemand)) + ' demand · ' +
+        escapeHtml(String(route.activeTrips)) + ' active trips</div>' +
+        '<div style="margin-top:8px">' + points + '</div></div>';
+    }).join('');
+  } catch (err) {
+    console.warn('Driver demand unavailable:', err);
+  }
+}
+
 async function loadDriver() {
   await Promise.all([
     loadDriverTaxis(),
-    loadDriverRoutes()
+    loadDriverRoutes(),
+    loadDriverDemand()
   ]);
 
   renderTaxis();
@@ -1496,6 +1542,9 @@ function escapeHtml(value) {
 
 (async function bootstrapDriver() {
   connectCloudflareDispatch();
+  setInterval(() => {
+    if (authToken) loadDriverDemand();
+  }, 30000);
   const restored =
     await restoreSession();
 
