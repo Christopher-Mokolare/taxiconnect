@@ -213,24 +213,50 @@ function utf8(value) {
 }
 
 async function hmac(secret, value) {
-  const key = await crypto.subtle.importKey(
-    "raw",
-    utf8(secret),
-    {
-      name: "HMAC",
-      hash: "SHA-256"
-    },
-    false,
-    ["sign", "verify"]
+  // Compute RFC 2104 HMAC-SHA-256 using the Workers-supported digest API.
+  // This avoids the HMAC importKey/sign path that has been observed to stall
+  // on the production login request while retaining a standards-compliant
+  // keyed MAC for session authentication.
+  const blockSize = 64;
+  let key = utf8(String(secret ?? ""));
+
+  if (key.length > blockSize) {
+    key = new Uint8Array(
+      await crypto.subtle.digest("SHA-256", key)
+    );
+  }
+
+  const paddedKey = new Uint8Array(blockSize);
+  paddedKey.set(key);
+
+  const inner = new Uint8Array(blockSize);
+  const outer = new Uint8Array(blockSize);
+
+  for (let i = 0; i < blockSize; i++) {
+    inner[i] = paddedKey[i] ^ 0x36;
+    outer[i] = paddedKey[i] ^ 0x5c;
+  }
+
+  const message = utf8(value);
+  const innerInput = new Uint8Array(
+    inner.length + message.length
+  );
+  innerInput.set(inner);
+  innerInput.set(message, inner.length);
+
+  const innerHash = new Uint8Array(
+    await crypto.subtle.digest("SHA-256", innerInput)
   );
 
-  const signature = await crypto.subtle.sign(
-    "HMAC",
-    key,
-    utf8(value)
+  const outerInput = new Uint8Array(
+    outer.length + innerHash.length
   );
+  outerInput.set(outer);
+  outerInput.set(innerHash, outer.length);
 
-  return new Uint8Array(signature);
+  return new Uint8Array(
+    await crypto.subtle.digest("SHA-256", outerInput)
+  );
 }
 
 function timingSafeEqual(a, b) {
