@@ -4876,7 +4876,14 @@ async function upsertOperatorRoutePoint(env, auth, body) {
 
 async function deactivateTaxi(env, auth, taxiId, active) {
   const membership = await requireOperatorMembership(env, auth.user.id, ["operator_admin"]);
-  const taxi = await getTaxiForOperator(env, membership.operator_id, taxiId);
+  const taxi = await env.DB.prepare(`
+    SELECT id, operator_id, vehicle_registration_number, active
+    FROM taxis
+    WHERE id = ? AND operator_id = ?
+    LIMIT 1
+  `).bind(taxiId, membership.operator_id).first();
+
+  if (!taxi) throw new HttpError("Taxi not found or access denied.", 404);
 
   await env.DB.prepare("UPDATE taxis SET active=?, last_updated=? WHERE id=?")
     .bind(active ? 1 : 0, now(), taxiId).run();
