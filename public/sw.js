@@ -1,4 +1,4 @@
-const CACHE_NAME = 'taxiconnect-v3';
+const CACHE_NAME = 'taxiconnect-v4';
 const ASSETS_TO_CACHE = ['/', '/index.html', '/conductor.html', '/driver.html', '/passenger.html', '/firebase-config.js', '/driver-manifest.json', '/passenger-manifest.json', '/icon-192.png'];
 
 self.addEventListener('install', event => {
