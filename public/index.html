@@ -12,6 +12,7 @@
   .cards{display:flex;flex-direction:column;gap:14px;width:100%;max-width:320px}
   .role-card{background:#fff;border-radius:14px;padding:20px;text-decoration:none;display:flex;align-items:center;gap:14px;box-shadow:0 4px 16px rgba(0,0,0,.3);transition:transform .15s}
   .role-card:active{transform:scale(.97)}
+  .role-card-superadmin{background:#e8f8ee}
   .icon{font-size:32px}
   .role-card h2{font-size:16px;color:#1a1a2e;margin-bottom:2px}
   .role-card p{font-size:12px;color:#888;margin:0}
@@ -20,7 +21,7 @@
 <body>
   <h1>🚕 TaxiConnect</h1>
   <p>Route-first transport operations platform</p>
-  <div class="cards"><a class="role-card" href="/admin.html"><span class="icon">🛡</span><div><h2>Super Admin</h2><p>Platform governance, operators, routes, health and audit</p></div></a><a class="role-card" href="/operator.html"><span class="icon">🏢</span><div><h2>Operator Admin</h2><p>Manage people, fleet, routes and authorizations</p></div></a>
+  <div class="cards"><a class="role-card role-card-superadmin" href="/admin.html"><span class="icon">🛡</span><div><h2>Super Admin</h2><p>Platform governance, operators, routes, health and audit</p></div></a><a class="role-card" href="/operator.html"><span class="icon">🏢</span><div><h2>Operator Admin</h2><p>Manage people, fleet, routes and authorizations</p></div></a>
     <a class="role-card" href="/conductor.html">
       <span class="icon">🎛</span>
       <div><h2>Conductor</h2><p>Manage taxis, view demand, summon drivers</p></div>
