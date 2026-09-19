@@ -2613,7 +2613,7 @@ What history must remain?
 
 This is the operational data contract for TaxiConnect.
 
-# 44. Final mental model
+# 45. Final mental model
 
 ~~~text
                          TAXICONNECT
@@ -2657,7 +2657,7 @@ The application exists to make this flow **coordinated, controlled, observable, 
 
 ---
 
-# 45. Final product statement
+# 46. Final product statement
 
 > **TaxiConnect is a route-based, demand-driven transport operations platform for minibus taxis. Passengers create transport demand; conductors manage demand and taxi lines; drivers operate assigned taxis and update trip state; operators manage fleets, people, and route authorizations; and Super Admins manage the platform. Cloudflare Worker provides the business/API layer, D1 provides persistent operational state, WebSockets provide realtime delivery, and lifecycle/audit rules preserve historical integrity.**
 
