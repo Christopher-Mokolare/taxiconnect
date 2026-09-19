@@ -1,0 +1,91 @@
+name: TaxiConnect Production Bootstrap
+
+on:
+  workflow_dispatch:
+    inputs:
+      admin_name:
+        description: "Name for the initial production Super Admin"
+        required: true
+        default: "Christopher Mokolare"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  provision-superadmin:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: bb3ec8cb5cabb7e1e726497329756e7b
+    defaults:
+      run:
+        working-directory: cloudflare
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install Wrangler
+        run: npm install
+
+      - name: Provision initial Super Admin
+        env:
+          ADMIN_NAME: ${{ inputs.admin_name }}
+        run: |
+          set -euo pipefail
+
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+
+          name = os.environ["ADMIN_NAME"]
+          if not name.strip():
+              raise SystemExit("admin_name cannot be empty")
+          if len(name) > 100:
+              raise SystemExit("admin_name is too long")
+
+          sql = """
+          INSERT INTO users (
+            id,
+            name,
+            role,
+            system_role,
+            active,
+            created_at,
+            last_seen_at
+          )
+          SELECT
+            'superadmin-prod-001',
+            ?1,
+            'passenger',
+            'superadmin',
+            1,
+            unixepoch(),
+            unixepoch()
+          WHERE NOT EXISTS (
+            SELECT 1
+            FROM users
+            WHERE system_role = 'superadmin'
+              AND active = 1
+          );
+          """
+
+          # Wrangler's D1 execute command accepts SQL text. The name is safely
+          # quoted here before being passed to SQLite as a literal.
+          escaped_name = name.replace("'", "''")
+          sql = sql.replace("?1", "'" + escaped_name + "'")
+          Path("/tmp/provision-superadmin.sql").write_text(sql, encoding="utf-8")
+          PY
+
+          npx wrangler@4.134.0 d1 execute taxiconnect --remote --file=/tmp/provision-superadmin.sql --yes
+
+      - name: Verify production Super Admin
+        run: |
+          set -euo pipefail
+          npx wrangler@4.134.0 d1 execute taxiconnect --remote --command "SELECT id, name, role, system_role, active FROM users WHERE system_role = 'superadmin' AND active = 1 LIMIT 1;"
