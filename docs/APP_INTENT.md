@@ -1872,6 +1872,747 @@ Before merging a feature:
 
 ---
 
+# 44. Operational onboarding and required information
+
+This section is the operational data contract for setting up TaxiConnect.
+
+It answers four questions for every operational entity:
+
+1. What information is required?
+2. Who supplies that information?
+3. Who is allowed to create or enter it?
+4. What does TaxiConnect generate or control itself?
+
+The UI may collect more information later, but the following is the minimum information required by the current Cloudflare Worker + D1 implementation.
+
+## 44.1 User types
+
+TaxiConnect has five operational identities:
+
+| User type | How the account is established | Operator membership | Main responsibility |
+|---|---|---|---|
+| Super Admin | Platform/bootstrap configuration | None | Platform administration |
+| Operator Admin | Provisioned by Super Admin for an operator | Required | Manages one operator |
+| Driver | Created by Operator Admin | Required | Operates an assigned taxi |
+| Conductor | Created by Operator Admin | Required | Manages route line and dispatch |
+| Passenger | Created automatically on first passenger interaction | None | Requests transport |
+
+A passenger is deliberately not an operator member.
+
+## 44.2 Authentication information
+
+The current application uses a name + PIN login model for operational users.
+
+For a managed operational account, the required information is:
+
+| Field | Required | Supplied by | Stored/controlled by |
+|---|---|---|---|
+| Name | Yes | Account holder/admin | users.name |
+| Role | Yes | System/admin workflow | users.role/system_role |
+| PIN | Yes | Account provisioning/login configuration | Authentication/session mechanism |
+| Phone | Yes for managed operator members | Admin/account holder | users.phone |
+| Active status | System-controlled | Admin action | users.active |
+| User ID | No | System | Generated |
+| Created timestamp | No | System | Generated |
+| Last login/seen timestamps | No | System | Generated |
+
+A PIN is authentication material and must not be treated as ordinary profile data or exposed in administrative listings.
+
+The current implementation does not require email, password, ID number, driver's licence number, or biometric information for the operational account flow. Those may be future compliance/profile fields, but they must not be documented as current system requirements unless the implementation is changed.
+
+## 44.3 Super Admin setup
+
+The Super Admin is the platform-level administrator.
+
+### Minimum information
+
+- name;
+- authentication PIN;
+- platform role.
+
+### System responsibilities
+
+TaxiConnect controls:
+
+- user ID;
+- active status;
+- session token;
+- timestamps;
+- audit records for important administrative actions.
+
+### Super Admin can establish
+
+1. operator;
+2. platform route;
+3. operator-route authorization;
+4. operator admin membership;
+5. platform lifecycle state.
+
+The Super Admin should not manually create trips, passenger waiting records, or driver assignments as a substitute for the operational workflow.
+
+## 44.4 Operator / association
+
+An operator represents the transport organisation or association that owns/manages taxis and operational members.
+
+### Information the Super Admin needs
+
+| Field | Required by current model | Notes |
+|---|---|---|
+| Operator name | Yes | Business/association display name |
+| Registration number | Optional | Unique when supplied |
+| Phone | Optional | Operator contact |
+| Email | Optional | Operator contact |
+| Address | Optional | Operator address |
+| Active status | System-managed | Starts active |
+| Operator ID | System-generated | Do not invent manually |
+| Created/updated timestamps | System-generated | Lifecycle support |
+
+The current API accepts the optional contact fields. Therefore, the business may require them operationally, but the current database does not make all of them mandatory.
+
+### Minimum setup dependency
+
+An operator must exist before an Operator Admin, taxi, or operator-scoped operational membership can be established.
+
+## 44.5 Operator Admin
+
+An Operator Admin is the operational administrator for one operator.
+
+### Information required
+
+- operator to which the person belongs;
+- full name;
+- phone;
+- authentication PIN/configuration for login.
+
+The current provisioning request requires:
+
+- operator ID;
+- name;
+- phone.
+
+The operator membership and user ID are generated/created by the platform.
+
+### Operator Admin responsibility
+
+The Operator Admin can manage resources inside the operator scope, including:
+
+- drivers;
+- conductors;
+- taxis;
+- driver-to-taxi assignments;
+- taxi-to-route authorizations;
+- route pickup points for routes the operator is authorized to operate;
+- operational lifecycle status.
+
+An Operator Admin must not be able to manage another operator's resources.
+
+## 44.6 Driver
+
+A Driver is an operational member of an operator.
+
+### Information required
+
+| Field | Required | Purpose |
+|---|---|---|
+| Full name | Yes | Driver identity/display |
+| Phone | Yes in current member creation flow | Operational contact |
+| Role = driver | Yes | Determines authorization |
+| Operator | Yes | Determines ownership/scope |
+| PIN | Yes for login | Authentication |
+| Active status | System/admin controlled | Enables/disables operation |
+
+The current member-creation API creates the user and operator membership together.
+
+The current data model does not require a driver's licence number, licence expiry, ID number, medical certificate, permit, or other regulatory credential. If those become required for real-world compliance, they should be added explicitly to the data model and validation rather than assumed to exist.
+
+### Driver operational prerequisites
+
+Before a driver can operate:
+
+1. the driver account must be active;
+2. the driver must have an active operator membership;
+3. the driver must have an active taxi assignment;
+4. the taxi must be active;
+5. the taxi must be authorized for the selected route;
+6. the route must be active.
+
+## 44.7 Conductor
+
+A Conductor is an operational member of an operator who coordinates the loading line and dispatch workflow.
+
+### Information required
+
+| Field | Required | Purpose |
+|---|---|---|
+| Full name | Yes | Conductor identity/display |
+| Phone | Yes in current member creation flow | Operational contact |
+| Role = conductor | Yes | Determines authorization |
+| Operator | Yes | Determines ownership/scope |
+| PIN | Yes for login | Authentication |
+| Active status | System/admin controlled | Enables/disables operation |
+
+### Conductor operational prerequisites
+
+Before a conductor can operate a line:
+
+1. the conductor account must be active;
+2. the conductor must have an active operator membership;
+3. the operator must be active;
+4. the route must be active;
+5. the operator must be authorized for the route;
+6. a daily line session must be opened for that operator and route.
+
+## 44.8 Route
+
+A route is a platform transport corridor/service.
+
+### Information required
+
+| Field | Required | Notes |
+|---|---|---|
+| Origin | Yes | Route endpoint |
+| Destination | Yes | Route endpoint |
+| Name | Current API optional/defaulted | Human-readable route name |
+| Service mode | Yes | RANK_DEPARTURE, COLLECTION, or HYBRID |
+| Active | System-managed | Lifecycle state |
+| Route ID | System-generated | Stable identifier |
+| Created/updated timestamps | System-generated | Lifecycle/audit support |
+
+The current journey model uses explicit origin and destination pickup-point IDs for passenger journeys. The route's origin/destination strings remain route-level display/corridor information.
+
+### Service modes
+
+- RANK_DEPARTURE — passengers primarily use a rank/departure workflow.
+- COLLECTION — passengers request collection at approved route points.
+- HYBRID — both operational patterns can be supported.
+
+## 44.9 Route pickup points
+
+A pickup point is a specific operational point belonging to a route.
+
+### Information required
+
+| Field | Required | Notes |
+|---|---|---|
+| Route ID | Yes | Parent route |
+| Name | Yes | Human-readable point |
+| Point type | Yes | RANK, PICKUP, or DROP_OFF |
+| Sequence | Yes operationally | Ordering along the route |
+| Latitude | Optional | Geographic coordinate |
+| Longitude | Optional | Geographic coordinate |
+| Address | Optional | Human-readable location |
+| Active | System-managed | Lifecycle state |
+| Point ID/timestamps | System-generated | Identity/lifecycle |
+
+The current Worker supports route points with explicit sequence and optional geographic/address data.
+
+A passenger's journey may use:
+
+- origin point;
+- destination point;
+- pickup point.
+
+These are separate concepts. The pickup point is where boarding/collection happens; origin and destination describe the passenger's intended journey.
+
+## 44.10 Taxi
+
+A taxi is an operator-owned operational vehicle.
+
+### Information required
+
+| Field | Required | Notes |
+|---|---|---|
+| Operator ID | Yes | Ownership |
+| Vehicle registration number | Yes for a normal registered taxi | Unique when supplied |
+| Capacity | Yes | Integer from 1 through 22 |
+| Active | System-managed | Lifecycle state |
+| Driver | Separate assignment | Do not treat as permanent vehicle identity |
+| Current status | System-managed | OFFLINE/loading/full/departed/breakdown |
+| Taxi ID/timestamps | System-generated | Identity/history |
+
+The taxi capacity is constrained by the current model to 1–22 passengers.
+
+### Important distinction
+
+Taxi registration is not the same thing as:
+
+- driver assignment;
+- route authorization;
+- current route;
+- current trip.
+
+These are separate relationships.
+
+## 44.11 Driver-to-taxi assignment
+
+A driver assignment connects a driver to a taxi.
+
+### Required information
+
+- taxi ID;
+- driver ID.
+
+### System-controlled information
+
+- assignment ID;
+- active state;
+- assignment timestamp;
+- ended timestamp when the assignment ends.
+
+An assignment does not by itself authorize the taxi for every route. Route authorization remains a separate step.
+
+## 44.12 Operator-to-route authorization
+
+This establishes that an operator is allowed to operate a route.
+
+### Required information
+
+- operator ID;
+- route ID.
+
+### System-controlled information
+
+- authorization record ID;
+- active/revoked state;
+- authorization timestamp;
+- revocation timestamp.
+
+This relationship is a prerequisite for operator-scoped route operations.
+
+## 44.13 Taxi-to-route authorization
+
+This establishes that a specific taxi may operate on a specific route.
+
+### Required information
+
+- taxi ID;
+- route ID.
+
+### System-controlled information
+
+- authorization record ID;
+- active/revoked state;
+- authorization timestamp;
+- revocation timestamp.
+
+This is intentionally separate from the operator-to-route authorization.
+
+The operational chain is:
+
+~~~text
+Operator authorized for route
+        +
+Taxi authorized for route
+        +
+Driver assigned to taxi
+        +
+Driver/conductor/operator active
+        ↓
+Route operation can proceed
+~~~
+
+## 44.14 Daily line session
+
+A line session represents the operational loading line for an operator, route, and service date.
+
+### Required information
+
+- operator ID;
+- route ID;
+- service date;
+- authorized conductor/operator-admin actor.
+
+### System-controlled information
+
+- line session ID;
+- status;
+- opened timestamp;
+- closed timestamp;
+- line entries.
+
+The same taxi may participate in different line sessions over time, including different routes on different operational periods.
+
+## 44.15 Line entry
+
+A line entry places a taxi into a particular daily loading line.
+
+### Required information
+
+- line session ID;
+- taxi ID;
+- position.
+
+### System-controlled information
+
+- entry ID;
+- status;
+- joined timestamp;
+- loading/removal timestamps.
+
+Line position is temporary operational state. It must not be confused with permanent taxi ownership or route authorization.
+
+## 44.16 Passenger
+
+Passengers are different from managed operator users.
+
+A passenger does not need an operator account or operator membership.
+
+### Current minimum passenger identity
+
+The current Worker can create/recognize a passenger identity from the passenger request context. The system generates a passenger display name when creating a new passenger identity.
+
+Therefore the current implementation does not require an administrator to create a passenger record before the passenger can request transport.
+
+### Information required for a passenger journey request
+
+| Field | Required | Purpose |
+|---|---|---|
+| Passenger identity | Yes | Associates the request with the passenger |
+| Route ID | Yes | Route being requested |
+| Origin point ID | Yes | Journey start |
+| Destination point ID | Yes | Journey end |
+| Request mode | Yes | RANK, ALONG_ROUTE, or COLLECTION workflow |
+| Pickup point ID | Required for point-based pickup | Boarding/collection location |
+| Group size | Yes | Number of passengers in the request |
+
+The Worker validates the route, points, request mode, journey endpoints, group size, active state, and duplicate/idempotency conditions.
+
+### Passenger does not supply
+
+The passenger does not choose:
+
+- operator ownership;
+- taxi ownership;
+- driver assignment;
+- taxi authorization;
+- line position;
+- trip ID.
+
+Those are operational/system decisions.
+
+## 44.17 Passenger demand vs waiting request
+
+TaxiConnect has two related but different concepts.
+
+### Waiting request
+
+Represents a passenger actually waiting/requesting transport.
+
+It can be:
+
+~~~text
+WAITING
+→ ASSIGNED
+→ COLLECTED
+~~~
+
+or cancelled/expired according to lifecycle rules.
+
+### Demand signal
+
+Represents route demand/interest used for operational visibility and analytics.
+
+It can be:
+
+~~~text
+ACTIVE
+→ FULFILLED
+~~~
+
+or cancelled/expired.
+
+A demand signal must not automatically be interpreted as a physical passenger currently standing at a rank.
+
+## 44.18 Trip
+
+A trip is created by the operational flow, not by an administrator filling out a generic CRUD form.
+
+### Trip inputs
+
+The system needs:
+
+- taxi;
+- route;
+- driver;
+- journey origin point where applicable;
+- journey destination point where applicable;
+- line entry where applicable;
+- capacity/passenger state.
+
+### System-generated trip information
+
+- trip ID;
+- status;
+- passenger count;
+- remaining seats;
+- start/update/departure/completion timestamps;
+- historical state.
+
+The driver progresses the trip through valid states.
+
+The core lifecycle is:
+
+~~~text
+LOADING / COLLECTING
+        ↓
+FULL
+        ↓
+DEPARTED
+        ↓
+ARRIVED
+~~~
+
+with explicitly controlled cancellation/offline paths.
+
+## 44.19 What the Super Admin needs before creating an operator
+
+The practical Super Admin intake checklist is:
+
+~~~text
+[ ] Operator/association name
+[ ] Registration number, if available/required by business policy
+[ ] Operator phone, if available/required by business policy
+[ ] Operator email, if available/required by business policy
+[ ] Operator address, if available/required by business policy
+[ ] Active/inactive decision
+~~~
+
+Then:
+
+~~~text
+[ ] Create operator
+[ ] Create/assign Operator Admin
+[ ] Give Operator Admin name
+[ ] Give Operator Admin phone
+[ ] Establish secure PIN/login credentials
+[ ] Verify operator scope
+~~~
+
+## 44.20 What the Operator Admin needs before starting operations
+
+For each operational person:
+
+~~~text
+[ ] Full name
+[ ] Phone
+[ ] Role: DRIVER or CONDUCTOR
+[ ] Secure PIN/login setup
+[ ] Active status
+~~~
+
+For each taxi:
+
+~~~text
+[ ] Vehicle registration number
+[ ] Passenger capacity (1–22)
+[ ] Active status
+~~~
+
+For each route used by the operator:
+
+~~~text
+[ ] Route exists
+[ ] Operator is authorized for route
+[ ] Required pickup points exist
+[ ] Taxi is authorized for route
+~~~
+
+For each driver:
+
+~~~text
+[ ] Driver account exists
+[ ] Driver belongs to this operator
+[ ] Driver is active
+[ ] Driver is assigned to a taxi
+~~~
+
+For each conductor:
+
+~~~text
+[ ] Conductor account exists
+[ ] Conductor belongs to this operator
+[ ] Conductor is active
+~~~
+
+## 44.21 Minimum operational setup order
+
+The recommended setup dependency order is:
+
+~~~text
+1. SUPER ADMIN
+      ↓
+2. OPERATOR
+      ↓
+3. OPERATOR ADMIN
+      ↓
+4. ROUTE
+      ↓
+5. OPERATOR ↔ ROUTE AUTHORIZATION
+      ↓
+6. ROUTE PICKUP POINTS
+      ↓
+7. TAXI
+      ↓
+8. DRIVER
+      ↓
+9. CONDUCTOR
+      ↓
+10. DRIVER ↔ TAXI ASSIGNMENT
+      ↓
+11. TAXI ↔ ROUTE AUTHORIZATION
+      ↓
+12. DAILY LINE SESSION
+      ↓
+13. TAXI LINE ENTRY
+      ↓
+14. PASSENGER JOURNEY REQUEST
+      ↓
+15. DEMAND / WAITING
+      ↓
+16. DISPATCH
+      ↓
+17. TRIP
+      ↓
+18. ARRIVAL / HISTORY / AUDIT
+~~~
+
+This order is a dependency model, not merely a screen-navigation order.
+
+## 44.22 Data ownership matrix
+
+| Data | Supplied by | Created/changed by | Authoritative store |
+|---|---|---|---|
+| Operator details | Operator/business | Super Admin | D1 operators |
+| Operator Admin identity | Admin/operator | Super Admin | D1 users + memberships |
+| Driver identity | Driver/operator | Operator Admin | D1 users + memberships |
+| Conductor identity | Conductor/operator | Operator Admin | D1 users + memberships |
+| Taxi details | Operator | Operator Admin | D1 taxis |
+| Route definition | Operations/platform | Super Admin | D1 routes |
+| Pickup point | Operations | Authorized Operator Admin | D1 route_pickup_points |
+| Operator-route authorization | Platform operations | Super Admin | D1 operator_routes |
+| Taxi-route authorization | Operator operations | Operator Admin | D1 taxi_routes |
+| Driver-taxi assignment | Operator operations | Operator Admin | D1 taxi_driver_assignments |
+| Line session | Operations | Conductor/Operator Admin | D1 line_sessions |
+| Line position | Operations | Conductor/Operator Admin | D1 line_entries |
+| Passenger journey | Passenger | Passenger request | D1 route_waiting_passengers/demand_signals |
+| Trip state | Driver/system | Driver + Worker rules | D1 trips |
+| Audit event | System | Worker | D1 audit_logs |
+| Incident | System/runtime | Worker | D1 system_incidents |
+
+## 44.23 Required vs optional vs generated
+
+This distinction must remain explicit in future development.
+
+### Required input
+
+Information without which the operation cannot be correctly created or processed.
+
+Examples:
+
+- operator name;
+- member name;
+- member role;
+- member phone for current managed-member creation;
+- taxi capacity;
+- taxi registration for normal registered fleet records;
+- route endpoints/service mode;
+- journey route/origin/destination;
+- passenger group size.
+
+### Optional input
+
+Information the current model accepts but does not universally require.
+
+Examples:
+
+- operator registration number;
+- operator phone/email/address;
+- pickup-point latitude/longitude/address;
+- some display metadata.
+
+### System-generated
+
+Never ask an administrator to invent these:
+
+- IDs;
+- timestamps;
+- active defaults;
+- audit events;
+- trip status history;
+- session tokens;
+- line/assignment/authorization record IDs.
+
+### Relationship data
+
+Some information is not a property of one record. It is a relationship that must be created separately:
+
+~~~text
+Operator ↔ Route
+Taxi ↔ Route
+Driver ↔ Taxi
+Operator ↔ User
+Taxi ↔ Line Session
+Passenger ↔ Journey
+Passenger Request ↔ Trip
+~~~
+
+This distinction prevents the system from collapsing operational relationships into unrelated fields.
+
+## 44.24 Current implementation boundary
+
+The current TaxiConnect implementation is intentionally narrower than a full regulatory fleet-management system.
+
+It currently models:
+
+- identity and role;
+- operator membership;
+- operator ownership;
+- routes;
+- pickup points;
+- taxi capacity/registration;
+- driver assignment;
+- route authorization;
+- line sessions;
+- demand;
+- passenger waiting;
+- trip state;
+- audit;
+- incidents;
+- realtime delivery.
+
+It does not currently establish dedicated regulatory/compliance records for:
+
+- driver's licence;
+- professional driving permit;
+- vehicle licence/roadworthy certificate;
+- operator permit;
+- passenger identity verification;
+- insurance;
+- banking/payment information.
+
+If any of these become business requirements, they should be introduced as explicit domain entities/fields with ownership, validation, lifecycle, and audit rules.
+
+## 44.25 Operational creation rule
+
+No new operational record should be added simply because a screen has a "Create" button.
+
+Before creating it, the system should answer:
+
+~~~text
+Who owns this?
+Who supplied the information?
+Who is authorized to create it?
+What prerequisites must exist?
+What fields are required?
+What fields are optional?
+What fields are system-generated?
+What relationships must also be created?
+What happens when it is deactivated?
+What history must remain?
+~~~
+
+This is the operational data contract for TaxiConnect.
+
 # 44. Final mental model
 
 ~~~text
