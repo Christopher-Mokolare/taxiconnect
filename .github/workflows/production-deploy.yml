@@ -38,4 +38,4 @@ jobs:
         run: npx wrangler@4.134.0 deploy --env production
 
       - name: Verify deployment
-        run: npx wrangler@4.134.0 deployments list --name taxiconnect-api --limit 1
+        run: npx wrangler@4.134.0 deployments list --name taxiconnect-api
