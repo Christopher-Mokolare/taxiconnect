@@ -2679,12 +2679,15 @@ async function conductorAddLineTaxi(env, auth, body) {
     line.route_id
   );
 
+  // A taxi may complete one trip and later re-enter the same day's line.
+  // Only an operationally active entry is reusable. Terminal entries must
+  // remain historical and must never block a fresh loading-line entry.
   const existing = await env.DB.prepare(`
     SELECT id, status, position
     FROM line_entries
     WHERE line_session_id = ?
       AND taxi_id = ?
-      AND status NOT IN ('REMOVED', 'REPLACED')
+      AND status IN ('WAITING', 'LOADING', 'DISPATCHED')
     LIMIT 1
   `)
     .bind(
@@ -2708,32 +2711,26 @@ async function conductorAddLineTaxi(env, auth, body) {
     .bind(lineSessionId)
     .first();
 
-  const position =
+  const requestedPosition =
     body.position == null
-      ? Number(maxPosition?.max_position || 0) + 1
+      ? null
       : integer(
           body.position,
           "position",
           1
         );
 
+  // Historical entries keep their positions. If the requested position is
+  // already occupied by any historical/operational entry, append instead of
+  // mutating history and risking the unique (line_session_id, position) key.
+  const position =
+    requestedPosition == null ||
+    requestedPosition <= Number(maxPosition?.max_position || 0)
+      ? Number(maxPosition?.max_position || 0) + 1
+      : requestedPosition;
+
   const timestamp = now();
   const entryId = id("lineentry");
-
-  if (position <= Number(maxPosition?.max_position || 0)) {
-    await env.DB.prepare(`
-      UPDATE line_entries
-      SET position = position + 1
-      WHERE line_session_id = ?
-        AND position >= ?
-        AND status NOT IN ('REMOVED', 'REPLACED')
-    `)
-      .bind(
-        lineSessionId,
-        position
-      )
-      .run();
-  }
 
   await env.DB.prepare(`
     INSERT INTO line_entries
