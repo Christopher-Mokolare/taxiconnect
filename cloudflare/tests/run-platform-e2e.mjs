@@ -1,3 +1,4 @@
+// Mobile client contract: the React Native app exercises the public passenger and driver endpoints covered below.
 const base = process.env.BASE_URL || "http://127.0.0.1:8787";
 const pin = process.env.E2E_PIN || "111111";
 let pass=0,fail=0,total=0;
