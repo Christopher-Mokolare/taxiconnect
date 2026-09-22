@@ -946,6 +946,8 @@ async function publicAvailability(env, routeId) {
       tr.started_at,
       tr.last_updated,
       tr.departed_at,
+      tr.operational_state,
+      tr.operational_updated_at,
       t.vehicle_registration_number,
       o.id AS operator_id,
       o.name AS operator_name
@@ -989,10 +991,74 @@ async function publicAvailability(env, routeId) {
     .bind(routeId)
     .all();
 
+  // Transport heartbeat: aggregate active passenger demand by pickup node.
+  // Demand is intentionally approximate and timestamped; it is not an ETA promise.
+  const demandResult = await env.DB.prepare(`
+    SELECT
+      ds.pickup_point_id,
+      ds.destination_point_id,
+      COALESCE(rpp.name, ds.pickup_description, 'Along route') AS pickup_name,
+      COALESCE(dest.name, 'Destination') AS destination_name,
+      COUNT(*) AS request_count,
+      COALESCE(SUM(ds.group_size), 0) AS passenger_count,
+      MAX(ds.updated_at) AS last_reported_at
+    FROM demand_signals ds
+    LEFT JOIN route_pickup_points rpp
+      ON rpp.id = ds.pickup_point_id
+    LEFT JOIN route_pickup_points dest
+      ON dest.id = ds.destination_point_id
+    WHERE ds.route_id = ?
+      AND ds.status = 'ACTIVE'
+      AND ds.signal_type IN ('DEMAND', 'WAITING')
+      AND (ds.updated_at IS NULL OR ds.updated_at >= ?)
+    GROUP BY
+      ds.pickup_point_id,
+      ds.destination_point_id,
+      pickup_name,
+      destination_name
+    ORDER BY passenger_count DESC, last_reported_at DESC
+  `)
+    .bind(routeId, now() - 30 * 60 * 1000)
+    .all();
+
+  const demand = demandResult.results || [];
+  const totalDemand = demand.reduce(
+    (sum, row) => sum + Number(row.passenger_count || 0),
+    0
+  );
+
+  const operatingTaxis = (result.results || []).map(trip => ({
+    tripId: trip.trip_id,
+    taxiId: trip.taxi_id,
+    registration: trip.vehicle_registration_number,
+    status: trip.status,
+    operationalState: trip.operational_state || (
+      trip.status === 'FULL'
+        ? 'FULL'
+        : trip.status === 'DEPARTED'
+          ? 'RETURNING'
+          : trip.status === 'COLLECTING'
+            ? 'ROAMING'
+            : 'AT_RANK'
+    ),
+    passengersOnboard: Number(trip.passengers_onboard || 0),
+    capacity: Number(trip.capacity || 0),
+    seatsRemaining: Number(trip.seats_remaining || 0),
+    lastReportedAt: trip.operational_updated_at || trip.last_updated || trip.started_at,
+    operatorName: trip.operator_name
+  }));
+
   return {
     route,
     trips: result.results || [],
-    pickupPoints: pickups.results || []
+    pickupPoints: pickups.results || [],
+    heartbeat: {
+      demand,
+      totalDemand,
+      activeTaxiCount: operatingTaxis.length,
+      taxis: operatingTaxis,
+      generatedAt: now()
+    }
   };
 }
 
@@ -4998,6 +5064,181 @@ async function operatorAuthorizeTaxiRouteFromAdmin(env, auth, body) {
   return await operatorAuthorizeTaxiRoute(env,auth,body);
 }
 
+
+async function driverHeartbeat(env, auth, body) {
+  const taxiId = requireString(body.taxiId, "taxiId");
+  const routeId = requireString(body.routeId, "routeId");
+  const state = requireString(body.state, "state").toUpperCase();
+
+  const allowedStates = new Set([
+    "OPERATING",
+    "ROAMING",
+    "AT_RANK",
+    "RETURNING",
+    "FULL",
+    "OFF_DUTY"
+  ]);
+
+  if (!allowedStates.has(state)) {
+    throw new HttpError(
+      "Invalid operational state. Use OPERATING, ROAMING, AT_RANK, RETURNING, FULL, or OFF_DUTY.",
+      400
+    );
+  }
+
+  const taxi = await getDriverTaxi(env, auth.user.id, taxiId);
+  await getTaxiRouteAuthorization(env, taxiId, routeId);
+
+  const activeTrip = await env.DB.prepare(`
+    SELECT id, status, passengers_onboard, capacity
+    FROM trips
+    WHERE taxi_id = ?
+      AND route_id = ?
+      AND status IN ('LOADING','COLLECTING','FULL','DEPARTED')
+    ORDER BY started_at DESC
+    LIMIT 1
+  `).bind(taxiId, routeId).first();
+
+  if (!activeTrip && state !== "OFF_DUTY") {
+    throw new HttpError("Start the assigned trip before publishing operational status.", 409);
+  }
+
+  const timestamp = now();
+
+  if (activeTrip) {
+    await env.DB.prepare(`
+      UPDATE trips
+      SET operational_state = ?,
+          operational_updated_at = ?,
+          status = CASE
+            WHEN ? = 'FULL' THEN 'FULL'
+            WHEN ? = 'OFF_DUTY' THEN 'OFFLINE'
+            WHEN ? = 'RETURNING' THEN 'DEPARTED'
+            WHEN ? IN ('ROAMING','OPERATING') AND status = 'LOADING' THEN 'COLLECTING'
+            ELSE status
+          END,
+          last_updated = ?
+      WHERE id = ?
+    `).bind(
+      state,
+      timestamp,
+      state,
+      state,
+      state,
+      state,
+      timestamp,
+      activeTrip.id
+    ).run();
+  }
+
+  await env.DB.prepare(`
+    UPDATE taxis
+    SET status = ?, last_updated = ?
+    WHERE id = ?
+  `).bind(
+    state === "OFF_DUTY" ? "OFFLINE" : state.toLowerCase(),
+    timestamp,
+    taxiId
+  ).run();
+
+  await writeAudit(env, {
+    actorUserId: auth.user.id,
+    operatorId: taxi.operator_id,
+    action: "TAXI_OPERATIONAL_STATE_CHANGED",
+    entityType: "taxi",
+    entityId: taxiId,
+    details: { routeId, state }
+  });
+
+  await broadcast(env, "taxi_operational_state", {
+    taxiId,
+    routeId,
+    state,
+    passengersOnboard: activeTrip?.passengers_onboard ?? 0,
+    capacity: activeTrip?.capacity ?? taxi.capacity ?? 0,
+    timestamp
+  });
+
+  return ok({
+    taxiId,
+    routeId,
+    state,
+    updatedAt: timestamp
+  });
+}
+
+async function driverRouteDemand(env, auth, url) {
+  const routeId = requireString(url.searchParams.get("routeId"), "routeId");
+  const taxiId = url.searchParams.get("taxiId");
+
+  if (taxiId) {
+    await getDriverTaxi(env, auth.user.id, taxiId);
+    await getTaxiRouteAuthorization(env, taxiId, routeId);
+  } else {
+    const routes = await driverRoutes(env, auth.user.id);
+    if (!(routes || []).some(route => route.id === routeId)) {
+      throw new HttpError("Driver is not authorized for this route.", 403);
+    }
+  }
+
+  const result = await env.DB.prepare(`
+    SELECT
+      ds.pickup_point_id,
+      ds.destination_point_id,
+      COALESCE(rpp.name, ds.pickup_description, 'Along route') AS pickup_name,
+      COALESCE(dest.name, 'Destination') AS destination_name,
+      COUNT(*) AS request_count,
+      COALESCE(SUM(ds.group_size), 0) AS passenger_count,
+      MAX(ds.updated_at) AS last_reported_at
+    FROM demand_signals ds
+    LEFT JOIN route_pickup_points rpp ON rpp.id = ds.pickup_point_id
+    LEFT JOIN route_pickup_points dest ON dest.id = ds.destination_point_id
+    WHERE ds.route_id = ?
+      AND ds.status = 'ACTIVE'
+      AND ds.signal_type IN ('DEMAND','WAITING')
+      AND (ds.updated_at IS NULL OR ds.updated_at >= ?)
+    GROUP BY ds.pickup_point_id, ds.destination_point_id, pickup_name, destination_name
+    ORDER BY passenger_count DESC, last_reported_at DESC
+  `).bind(routeId, now() - 30 * 60 * 1000).all();
+
+  const demand = result.results || [];
+  return ok({
+    routeId,
+    totalDemand: demand.reduce((sum, row) => sum + Number(row.passenger_count || 0), 0),
+    demand,
+    generatedAt: now()
+  });
+}
+
+
+async function passengerCancelDemand(env, request, body) {
+  const passengerId = getPassengerId(request);
+  await ensurePassenger(env, passengerId);
+  const signalId = requireString(body.signalId, "signalId");
+  const timestamp = now();
+
+  const result = await env.DB.prepare(`
+    UPDATE demand_signals
+    SET status = 'CANCELLED', updated_at = ?
+    WHERE id = ?
+      AND passenger_id = ?
+      AND signal_type = 'DEMAND'
+      AND status = 'ACTIVE'
+  `).bind(timestamp, signalId, passengerId).run();
+
+  if (!result.meta?.changes) {
+    throw new HttpError("Active demand signal not found.", 404);
+  }
+
+  await broadcast(env, "route_demand_cancelled", {
+    signalId,
+    passengerId,
+    timestamp
+  });
+
+  return ok({ signalId, status: "CANCELLED", updatedAt: timestamp });
+}
+
 async function handleApi(request, env) {
   const url = new URL(request.url);
   const path = url.pathname;
@@ -5343,6 +5584,22 @@ async function handleApi(request, env) {
   }
 
   if (
+    path === "/api/driver/heartbeat" &&
+    method === "POST"
+  ) {
+    const auth = await requireRole(request, env, ["driver"]);
+    return await driverHeartbeat(env, auth, await readJson(request));
+  }
+
+  if (
+    path === "/api/driver/demand" &&
+    method === "GET"
+  ) {
+    const auth = await requireRole(request, env, ["driver"]);
+    return await driverRouteDemand(env, auth, url);
+  }
+
+  if (
     path === "/api/driver/offline" &&
     method === "POST"
   ) {
@@ -5386,6 +5643,13 @@ async function handleApi(request, env) {
       request,
       await readJson(request)
     );
+  }
+
+  if (
+    path === "/api/passenger/cancel-demand" &&
+    method === "POST"
+  ) {
+    return await passengerCancelDemand(env, request, await readJson(request));
   }
 
   if (
