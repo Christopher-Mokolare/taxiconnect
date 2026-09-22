@@ -10,10 +10,12 @@ DELETE FROM trips;
 DELETE FROM route_waiting_passengers;
 DELETE FROM demand_signals;
 DELETE FROM operator_memberships;
-DELETE FROM operators;
+DELETE FROM operator_routes;
 DELETE FROM route_pickup_points;
-DELETE FROM routes;
+DELETE FROM trips;
 DELETE FROM taxis;
+DELETE FROM routes;
+DELETE FROM operators;
 DELETE FROM users;
 
 INSERT INTO users (id,name,role,system_role,active,created_at,last_seen_at)
