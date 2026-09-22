@@ -1,6 +1,11 @@
 // Mobile client contract: the React Native app exercises the public passenger and driver endpoints covered below.
 const base = process.env.BASE_URL || "http://127.0.0.1:8787";
-const pin = process.env.E2E_PIN || "111111";
+const pins = {
+  driver: process.env.DRIVER_PIN || process.env.E2E_PIN || "111111",
+  conductor: process.env.CONDUCTOR_PIN || process.env.E2E_PIN || "111111",
+  operator_admin: process.env.OPERATOR_ADMIN_PIN || process.env.E2E_PIN || "111111",
+  superadmin: process.env.SUPERADMIN_PIN || process.env.E2E_PIN || "111111"
+};
 let pass=0,fail=0,total=0;
 
 async function req(name, method, path, {token="", body, expected=200, passenger=false}={}) {
@@ -15,7 +20,7 @@ async function req(name, method, path, {token="", body, expected=200, passenger=
   return data;
 }
 async function login(role,name){
-  const d=await req("login "+role,"POST","/api/auth/login",{body:{role,name,pin},expected:200});
+  const d=await req("login "+role,"POST","/api/auth/login",{body:{role,name,pin:pins[role]},expected:200});
   return d.token;
 }
 async function expectDenied(name,token,path){await req(name,"GET",path,{token,expected:403})}
