@@ -12,7 +12,6 @@ DELETE FROM demand_signals;
 DELETE FROM operator_memberships;
 DELETE FROM operator_routes;
 DELETE FROM route_pickup_points;
-DELETE FROM trips;
 DELETE FROM taxis;
 DELETE FROM routes;
 DELETE FROM operators;
