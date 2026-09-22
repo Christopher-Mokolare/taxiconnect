@@ -5131,12 +5131,21 @@ async function driverHeartbeat(env, auth, body) {
     ).run();
   }
 
+  const legacyTaxiStatus =
+    state === "OFF_DUTY"
+      ? "OFFLINE"
+      : state === "FULL"
+        ? "full"
+        : state === "RETURNING"
+          ? "departed"
+          : "loading";
+
   await env.DB.prepare(`
     UPDATE taxis
     SET status = ?, last_updated = ?
     WHERE id = ?
   `).bind(
-    state === "OFF_DUTY" ? "OFFLINE" : state.toLowerCase(),
+    legacyTaxiStatus,
     timestamp,
     taxiId
   ).run();
